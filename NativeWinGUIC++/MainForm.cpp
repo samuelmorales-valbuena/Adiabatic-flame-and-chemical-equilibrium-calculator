@@ -1181,8 +1181,11 @@ namespace NativeWinGUIC {
                 msg = "Adiabatic Flame Temperature: " + (aft - 273.15).ToString() + " °C" + "\n" + "a: " + (std::get<1>(incompTuple)).ToString() + "\n" + "b: " + (std::get<2>(incompTuple)).ToString() + "\n" + "c: " + (std::get<3>(incompTuple)).ToString();
             }
         }
-        else if (rdbLogFULL->Checked && !ckbRecombination->Checked) {
+        if (rdbLogFULL->Checked && !ckbRecombination->Checked) {
             MessageBox::Show("Only simple output for non-recombining reactions!");
+        }
+        if (rdbLogDEBUG->Checked) {
+            MessageBox::Show("Dev feature, work in progress");
         }
         
         MessageBox::Show(msg);
