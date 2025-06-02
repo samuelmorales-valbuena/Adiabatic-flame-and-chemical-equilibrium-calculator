@@ -858,8 +858,14 @@ static std::tuple<double, double, std::vector<double>, double, double, double> e
 
         // If c AND b exist, calculate extended experimental kp
         if (b != 0 && c != 0) {
-            kpexp = ((a / totalVariables) / ((pow(b / totalVariables, abs(exponents[1]))) * (pow(c / totalVariables, abs(exponents[2]))))) * pow(pressure, deltn);
-            //System::Windows::Forms::MessageBox::Show("kpexp 1: " + kpexp.ToString());
+            if (balanceEquations[0].find("b") != std::string::npos) {
+                kpexp = ((a / totalVariables) / ((pow(b / totalVariables, abs(exponents[1]))) * (pow(c / totalVariables, abs(exponents[2]))))) * pow(pressure, deltn);
+                //System::Windows::Forms::MessageBox::Show("kpexp 1: " + kpexp.ToString());
+            }
+            else {
+                kpexp = ((a / totalVariables) / ((pow(b / totalVariables, abs(exponents[2]))) * (pow(c / totalVariables, abs(exponents[1]))))) * pow(pressure, deltn);
+            }
+
         } // Otherwise, only a and b
         else if (b != 0) {
             kpexp = ((a / totalVariables) / (pow(b / totalVariables, abs(exponents[1])))) * pow(pressure, deltn);
