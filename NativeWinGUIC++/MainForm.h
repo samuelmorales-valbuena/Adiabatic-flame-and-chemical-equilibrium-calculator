@@ -61,8 +61,9 @@ namespace NativeWinGUIC {
 	private: System::Windows::Forms::Label^ label6;
 	private: System::Windows::Forms::Label^ label7;
 	private: System::Windows::Forms::TextBox^ tbProducts;
+	private: System::Windows::Forms::Label^ lblHelp;
 
-	private: System::Windows::Forms::Label^ label8;
+
 
 	private: System::Windows::Forms::Label^ label10;
 
@@ -93,6 +94,9 @@ namespace NativeWinGUIC {
 	private: System::Windows::Forms::Label^ lblAvailableCompounds;
 
 
+	private: System::ComponentModel::IContainer^ components;
+
+
 
 
 
@@ -105,7 +109,7 @@ namespace NativeWinGUIC {
 		/// <summary>
 		/// Required designer variable.
 		/// </summary>
-		System::ComponentModel::Container ^components;
+
 
 #pragma region Windows Form Designer generated code
 		/// <summary>
@@ -127,7 +131,7 @@ namespace NativeWinGUIC {
 			this->label6 = (gcnew System::Windows::Forms::Label());
 			this->label7 = (gcnew System::Windows::Forms::Label());
 			this->tbProducts = (gcnew System::Windows::Forms::TextBox());
-			this->label8 = (gcnew System::Windows::Forms::Label());
+			this->lblHelp = (gcnew System::Windows::Forms::Label());
 			this->label10 = (gcnew System::Windows::Forms::Label());
 			this->label11 = (gcnew System::Windows::Forms::Label());
 			this->rdbOutK = (gcnew System::Windows::Forms::RadioButton());
@@ -226,9 +230,9 @@ namespace NativeWinGUIC {
 			// 
 			// btnRun
 			// 
-			this->btnRun->Location = System::Drawing::Point(647, 328);
+			this->btnRun->Location = System::Drawing::Point(405, 328);
 			this->btnRun->Name = L"btnRun";
-			this->btnRun->Size = System::Drawing::Size(55, 23);
+			this->btnRun->Size = System::Drawing::Size(297, 23);
 			this->btnRun->TabIndex = 12;
 			this->btnRun->Text = L"Run";
 			this->btnRun->UseVisualStyleBackColor = true;
@@ -238,7 +242,7 @@ namespace NativeWinGUIC {
 			// 
 			this->btnClear->AutoSize = true;
 			this->btnClear->AutoSizeMode = System::Windows::Forms::AutoSizeMode::GrowAndShrink;
-			this->btnClear->Location = System::Drawing::Point(405, 328);
+			this->btnClear->Location = System::Drawing::Point(238, 328);
 			this->btnClear->Name = L"btnClear";
 			this->btnClear->Size = System::Drawing::Size(55, 23);
 			this->btnClear->TabIndex = 13;
@@ -275,15 +279,15 @@ namespace NativeWinGUIC {
 			this->tbProducts->Enter += gcnew System::EventHandler(this, &MainForm::tbProducts_Enter);
 			this->tbProducts->Leave += gcnew System::EventHandler(this, &MainForm::tbProducts_Leave);
 			// 
-			// label8
+			// lblHelp
 			// 
-			this->label8->AutoSize = true;
-			this->label8->BorderStyle = System::Windows::Forms::BorderStyle::FixedSingle;
-			this->label8->Location = System::Drawing::Point(291, 16);
-			this->label8->Name = L"label8";
-			this->label8->Size = System::Drawing::Size(15, 15);
-			this->label8->TabIndex = 17;
-			this->label8->Text = L"\?";
+			this->lblHelp->AutoSize = true;
+			this->lblHelp->BorderStyle = System::Windows::Forms::BorderStyle::FixedSingle;
+			this->lblHelp->Location = System::Drawing::Point(291, 16);
+			this->lblHelp->Name = L"lblHelp";
+			this->lblHelp->Size = System::Drawing::Size(15, 15);
+			this->lblHelp->TabIndex = 17;
+			this->lblHelp->Text = L"\?";
 			// 
 			// label10
 			// 
@@ -448,7 +452,7 @@ namespace NativeWinGUIC {
 			this->groupBox3->Controls->Add(this->label6);
 			this->groupBox3->Controls->Add(this->tbReactants);
 			this->groupBox3->Controls->Add(this->label3);
-			this->groupBox3->Controls->Add(this->label8);
+			this->groupBox3->Controls->Add(this->lblHelp);
 			this->groupBox3->Controls->Add(this->ckbRecombination);
 			this->groupBox3->Controls->Add(this->tbProducts);
 			this->groupBox3->Controls->Add(this->label4);

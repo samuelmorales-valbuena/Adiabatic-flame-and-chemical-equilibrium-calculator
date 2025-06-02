@@ -28,5 +28,8 @@
     <Text Include="Names.txt">
       <Filter>Resource Files</Filter>
     </Text>
+    <Text Include="HelpMessage.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
   </ItemGroup>
 </Project>

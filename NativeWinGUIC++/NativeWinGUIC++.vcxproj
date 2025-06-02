@@ -140,6 +140,7 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <Text Include="HelpMessage.txt" />
     <Text Include="Names.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
