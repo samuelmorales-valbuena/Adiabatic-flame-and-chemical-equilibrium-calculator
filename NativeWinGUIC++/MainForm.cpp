@@ -579,6 +579,7 @@ double completeCombustion(const std::string& reactantsInput, const std::string& 
 // INCOMPLETE COMBUSTION SECTION --------------------------------------------------------------------------------------------------
 //
 
+// Function for incomplete combustion that returns mixed (numerical and symbolic) coefficients for the products
 std::vector<std::string> symbolicProductsCoeffHandler(const std::vector<std::string> &productsCompounds, const std::vector<double> &productsCoeff, const std::vector<std::string> &selectedKpExp) {
     
     // Setup symbolicProductsCoeff equal to productsCoeff
@@ -601,6 +602,7 @@ std::vector<std::string> symbolicProductsCoeffHandler(const std::vector<std::str
     return symbolicProductsCoeff;
 }
 
+// Function that converts elements in a string vector to doubles, replacing symbolic variables for their provided value
 std::vector<double> simpleEvalHandler(const std::vector<std::string> &stringVector, const double &a, const double &b, const double &c) {
     std::vector<double> evaluatedDoubleVector;
     for (auto& term : stringVector) {
@@ -624,6 +626,7 @@ std::vector<double> simpleEvalHandler(const std::vector<std::string> &stringVect
     return evaluatedDoubleVector;
 }
 
+ // Function that builds the atom balance equations, where every equation is a string in the returned string vector
 std::vector<std::string> balanceEquationsHandler(const std::vector<std::string> &reactantsCompounds, const std::vector<double> &reactantsCoeff, const std::vector<std::string> &productsCompounds, const std::vector<double> &productsCoeff, const std::vector<std::string> &selectedKpExp, const double &midx) {
    
     std::vector<std::string> balanceEquations;
