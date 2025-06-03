@@ -1,4 +1,5 @@
 #include "MainForm.h"
+#include "HelpForm.h"
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -1103,14 +1104,14 @@ std::tuple<double, double, double, double> incompleteCombustion(const std::strin
 //
 
 namespace NativeWinGUIC {
-	System::Void MainForm::btnRun_Click(System::Object^ sender, System::EventArgs^ e) {
-	
+    System::Void MainForm::btnRun_Click(System::Object^ sender, System::EventArgs^ e) {
+
         // Extract from the reaction textboxes
-		String^ Reactantsinput = tbReactants->Text;
+        String^ Reactantsinput = tbReactants->Text;
         std::string convReactantsinput = msclr::interop::marshal_as<std::string>(Reactantsinput);
-		String^ Productsinput = tbProducts->Text;
+        String^ Productsinput = tbProducts->Text;
         std::string convProductsinput = msclr::interop::marshal_as<std::string>(Productsinput);
-        
+
         // Extract from the pressure textbox
         String^ pressureInput = tbPressure->Text;
         double PressureNum = 0.0;
@@ -1125,7 +1126,7 @@ namespace NativeWinGUIC {
                 PressureNum = 0.0680459639 * stod(msclr::interop::marshal_as<std::string>(pressureInput));
             }
         }
-        
+
         // Extract selected item in recombination textbox
         std::string recombSelectedString;
         if (!String::IsNullOrEmpty(lstbRecombOptions->GetItemText(lstbRecombOptions->SelectedItem))) {
@@ -1133,7 +1134,7 @@ namespace NativeWinGUIC {
         }
 
         // Verify valid reaction input
-		if (!String::IsNullOrEmpty(Reactantsinput) && !String::IsNullOrEmpty(Productsinput) && !tbReactants->Text->Contains("e.g. N2H4 3N2 H2") && !tbProducts->Text->Contains("e.g. 2NH3 N2 H2")) {
+        if (!String::IsNullOrEmpty(Reactantsinput) && !String::IsNullOrEmpty(Productsinput) && !tbReactants->Text->Contains("e.g. N2H4 3N2 H2") && !tbProducts->Text->Contains("e.g. 2NH3 N2 H2")) {
             if (ckbRecombination->Checked && PressureNum) {
                 MessageBox::Show("Reaction to process: " + Reactantsinput + " -> " + Productsinput + "\n" + "Reaction Pressure: " + PressureNum + " atm" + "\n" + "The following recombination effect will be considered: " + gcnew String(recombSelectedString.c_str()));
             }
@@ -1141,23 +1142,23 @@ namespace NativeWinGUIC {
                 MessageBox::Show("Reaction to process: " + Reactantsinput + " -> " + Productsinput);
             }
 
-		}
-		else { MessageBox::Show("Incomplete reaction input"); }
+        }
+        else { MessageBox::Show("Incomplete reaction input"); }
 
         // Initialize Adiabatic flame temperature variable "aft"
         double aft = 0.0;
         std::tuple<double, double, double, double> incompTuple;
 
         // Determine type of calculation from checkbox
-        if (!ckbRecombination->Checked) { 
-            aft = completeCombustion(convReactantsinput, convProductsinput); 
+        if (!ckbRecombination->Checked) {
+            aft = completeCombustion(convReactantsinput, convProductsinput);
         }
         else {
             incompTuple = incompleteCombustion(convReactantsinput, convProductsinput, 0.000001, recombSelectedString, PressureNum);
             aft = std::get<0>(incompTuple);
         }
 
-		//Final Temperature Output
+        //Final Temperature Output
         System::String^ msg = "Enter valid input and options";
         if (rdbLogSIMPLE->Checked) {
             if (rdbOutK->Checked) {
@@ -1187,9 +1188,14 @@ namespace NativeWinGUIC {
         if (rdbLogDEBUG->Checked) {
             MessageBox::Show("Dev feature, work in progress");
         }
-        
+
         MessageBox::Show(msg);
-	}
+    }
+
+    System::Void MainForm::btnHelp_Click(System::Object^ sender, System::EventArgs^ e) {
+        Form^ hF = gcnew HelpForm;
+        hF->Show();
+    }
 }
 
 
@@ -1200,6 +1206,7 @@ int main(cli::array<System::String^>^ args)
 	System::Windows::Forms::Application::EnableVisualStyles();
 	System::Windows::Forms::Application::SetCompatibleTextRenderingDefault(false);
 	NativeWinGUIC::MainForm form;
+    NativeWinGUIC::HelpForm form2;
 	System::Windows::Forms::Application::Run(%form);
 	return 0;
 

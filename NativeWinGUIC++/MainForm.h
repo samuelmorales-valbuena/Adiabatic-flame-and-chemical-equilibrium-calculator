@@ -61,7 +61,7 @@ namespace NativeWinGUIC {
 	private: System::Windows::Forms::Label^ label6;
 	private: System::Windows::Forms::Label^ label7;
 	private: System::Windows::Forms::TextBox^ tbProducts;
-	private: System::Windows::Forms::Label^ lblHelp;
+
 
 
 
@@ -92,6 +92,8 @@ namespace NativeWinGUIC {
 	private: System::Windows::Forms::Panel^ panel1;
 	private: System::Windows::Forms::GroupBox^ groupBox4;
 	private: System::Windows::Forms::Label^ lblAvailableCompounds;
+	private: System::Windows::Forms::Button^ btnHelp;
+
 
 
 	private: System::ComponentModel::IContainer^ components;
@@ -131,7 +133,6 @@ namespace NativeWinGUIC {
 			this->label6 = (gcnew System::Windows::Forms::Label());
 			this->label7 = (gcnew System::Windows::Forms::Label());
 			this->tbProducts = (gcnew System::Windows::Forms::TextBox());
-			this->lblHelp = (gcnew System::Windows::Forms::Label());
 			this->label10 = (gcnew System::Windows::Forms::Label());
 			this->label11 = (gcnew System::Windows::Forms::Label());
 			this->rdbOutK = (gcnew System::Windows::Forms::RadioButton());
@@ -149,6 +150,7 @@ namespace NativeWinGUIC {
 			this->groupBox3 = (gcnew System::Windows::Forms::GroupBox());
 			this->groupBox4 = (gcnew System::Windows::Forms::GroupBox());
 			this->lblAvailableCompounds = (gcnew System::Windows::Forms::Label());
+			this->btnHelp = (gcnew System::Windows::Forms::Button());
 			this->groupBox1->SuspendLayout();
 			this->groupBox2->SuspendLayout();
 			this->panel1->SuspendLayout();
@@ -278,16 +280,6 @@ namespace NativeWinGUIC {
 			this->tbProducts->Text = L"e.g. 2NH3 N2 H2";
 			this->tbProducts->Enter += gcnew System::EventHandler(this, &MainForm::tbProducts_Enter);
 			this->tbProducts->Leave += gcnew System::EventHandler(this, &MainForm::tbProducts_Leave);
-			// 
-			// lblHelp
-			// 
-			this->lblHelp->AutoSize = true;
-			this->lblHelp->BorderStyle = System::Windows::Forms::BorderStyle::FixedSingle;
-			this->lblHelp->Location = System::Drawing::Point(291, 16);
-			this->lblHelp->Name = L"lblHelp";
-			this->lblHelp->Size = System::Drawing::Size(15, 15);
-			this->lblHelp->TabIndex = 17;
-			this->lblHelp->Text = L"\?";
 			// 
 			// label10
 			// 
@@ -452,7 +444,6 @@ namespace NativeWinGUIC {
 			this->groupBox3->Controls->Add(this->label6);
 			this->groupBox3->Controls->Add(this->tbReactants);
 			this->groupBox3->Controls->Add(this->label3);
-			this->groupBox3->Controls->Add(this->lblHelp);
 			this->groupBox3->Controls->Add(this->ckbRecombination);
 			this->groupBox3->Controls->Add(this->tbProducts);
 			this->groupBox3->Controls->Add(this->label4);
@@ -484,12 +475,23 @@ namespace NativeWinGUIC {
 			this->lblAvailableCompounds->Text = L"O2 H H2 OH H2O N N2 NO CO CO2 CH4 C2H2 Cl Cl2 HCl NH NH3 CH2 NO2";
 			this->lblAvailableCompounds->TextAlign = System::Drawing::ContentAlignment::MiddleCenter;
 			// 
+			// btnHelp
+			// 
+			this->btnHelp->Location = System::Drawing::Point(598, 9);
+			this->btnHelp->Name = L"btnHelp";
+			this->btnHelp->Size = System::Drawing::Size(104, 23);
+			this->btnHelp->TabIndex = 37;
+			this->btnHelp->Text = L"How to use this\?";
+			this->btnHelp->UseVisualStyleBackColor = true;
+			this->btnHelp->Click += gcnew System::EventHandler(this, &MainForm::btnHelp_Click);
+			// 
 			// MainForm
 			// 
 			this->AutoScaleDimensions = System::Drawing::SizeF(6, 13);
 			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
 			this->AutoSizeMode = System::Windows::Forms::AutoSizeMode::GrowAndShrink;
 			this->ClientSize = System::Drawing::Size(714, 391);
+			this->Controls->Add(this->btnHelp);
 			this->Controls->Add(this->groupBox4);
 			this->Controls->Add(this->groupBox3);
 			this->Controls->Add(this->groupBox2);
@@ -581,5 +583,6 @@ namespace NativeWinGUIC {
 	}
 	private: System::Void btnRun_Click(System::Object^ sender, System::EventArgs^ e);
 
+	private: System::Void btnHelp_Click(System::Object^ sender, System::EventArgs^ e);
 };
 }

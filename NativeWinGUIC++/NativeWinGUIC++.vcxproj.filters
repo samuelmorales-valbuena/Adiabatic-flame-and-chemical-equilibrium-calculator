@@ -18,17 +18,20 @@
     <ClCompile Include="MainForm.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="HelpForm.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MainForm.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="HelpForm.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="Names.txt">
-      <Filter>Resource Files</Filter>
-    </Text>
-    <Text Include="HelpMessage.txt">
       <Filter>Resource Files</Filter>
     </Text>
   </ItemGroup>

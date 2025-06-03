@@ -1,6 +1,6 @@
----------------------Adiabatic Flame Temperature Calculator---------------------
+---------------------Adiabatic Flame Temperature Calculator----------------------
 
-Input **************************************************************************
+Input ***************************************************************************
 
 Chemical reactions should be split in reactants and compounds, and placed in
 their respective text box. For example, the reaction
@@ -18,7 +18,7 @@ In case that recombination effects need to be considered, select the checkbox
 and the desired recombination reaction from the list.
 Then, input the pressure and select the units.
 
-Output *************************************************************************
+Output **************************************************************************
 
 Select the desired output temperature, and the type of log.
 
@@ -32,3 +32,5 @@ recombination reaction, NOT the order of the input reaction. For example:
 		Output follows this:	aNH3 <=> bN2 cH2
 		NOT this:				3N2H4 -> aNH3 bH2 cN2
 
+However, there is no restriction on the input order, so long as the recombination
+reaction is fully contained in the products.
