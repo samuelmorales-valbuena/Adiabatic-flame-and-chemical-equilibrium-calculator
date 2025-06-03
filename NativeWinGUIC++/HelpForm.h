@@ -95,11 +95,12 @@ namespace NativeWinGUIC {
 			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
 			this->ClientSize = System::Drawing::Size(424, 511);
 			this->Controls->Add(this->tableLayoutPanel1);
+			this->Icon = (cli::safe_cast<System::Drawing::Icon^>(resources->GetObject(L"$this.Icon")));
 			this->MaximizeBox = false;
 			this->MaximumSize = System::Drawing::Size(440, 550);
 			this->Name = L"HelpForm";
 			this->SizeGripStyle = System::Windows::Forms::SizeGripStyle::Hide;
-			this->Text = L"HelpForm";
+			this->Text = L"Usage help";
 			this->tableLayoutPanel1->ResumeLayout(false);
 			this->ResumeLayout(false);
 			this->PerformLayout();
