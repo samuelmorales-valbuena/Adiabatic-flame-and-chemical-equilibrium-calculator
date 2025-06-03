@@ -437,7 +437,16 @@ std::vector<std::string> splitKpString(const std::string& input) {
 
 //Chemical balance function
 void splitChemicalTerms(const std::string& input, std::vector<double>& coefficients, std::vector<std::string>& compounds) {
-    std::istringstream iss(input);
+    std::string filteredInput;
+
+    // First, filter the input to only include allowed characters
+    for (char c : input) {
+        if (isalnum(c) || c == '.' || c == ' ') {
+            filteredInput += c;
+        }
+    }
+
+    std::istringstream iss(filteredInput);
     std::string term;
 
     while (iss >> term) {
@@ -449,8 +458,15 @@ void splitChemicalTerms(const std::string& input, std::vector<double>& coefficie
 
         if (i > 0) {
             // There's a coefficient
-            coefficients.push_back(stod(term.substr(0, i)));
-            compounds.push_back(term.substr(i));
+            try {
+                coefficients.push_back(stod(term.substr(0, i)));
+                compounds.push_back(term.substr(i));
+            }
+            catch (...) {
+                // If stod fails, treat as no coefficient
+                coefficients.push_back(1.0);
+                compounds.push_back(term);
+            }
         }
         else {
             // No coefficient, default to 1
@@ -1196,6 +1212,7 @@ namespace NativeWinGUIC {
         Form^ hF = gcnew HelpForm;
         hF->Show();
     }
+
 }
 
 
