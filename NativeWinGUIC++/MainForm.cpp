@@ -596,7 +596,7 @@ double completeCombustion(const std::string& reactantsInput, const std::string& 
 // INCOMPLETE COMBUSTION SECTION --------------------------------------------------------------------------------------------------
 //
 
-// Function for incomplete combustion that returns mixed (numerical and symbolic) coefficients for the products
+// Function for incomplete combustion that returns mixed (numerical and symbolic) coefficients for the products as strings
 std::vector<std::string> symbolicProductsCoeffHandler(const std::vector<std::string> &productsCompounds, const std::vector<double> &productsCoeff, const std::vector<std::string> &selectedKpExp) {
     
     // Setup symbolicProductsCoeff equal to productsCoeff
@@ -709,6 +709,7 @@ std::vector<std::string> balanceEquationsHandler(const std::vector<std::string> 
 }
 
 
+
 struct EquationSide {
     double constant = 0.0;
     double coefficient = 0.0;
@@ -804,7 +805,7 @@ static std::tuple<double, double, std::vector<double>, double, double, double> e
 
     // Binary FRACTION search setup
     double lowx = 0;
-    double highx = 2.0;
+    double highx = 1.0;
     double bestX = 0;  // Fallback value
     double bestXError = INFINITY;
 
@@ -848,7 +849,7 @@ static std::tuple<double, double, std::vector<double>, double, double, double> e
             }
         }
 
-        // Calculate total abc
+        // Calculate total a+b+c
         double totalVariables = a + b + c;
 
         //System::Windows::Forms::MessageBox::Show("a: " + a.ToString() + "\n" + "b: " + b.ToString() + "\n" + "c: " + c.ToString());
@@ -868,13 +869,12 @@ static std::tuple<double, double, std::vector<double>, double, double, double> e
             rightEnth += evalProductsCoeffs[p] * enthalpies[productsCompounds[p]];
         }
 
-
-
         // Target enthalpy of formation
         double targetEnth = leftEnth - rightEnth;
 
         // If c AND b exist, calculate extended experimental kp
         if (b != 0 && c != 0) {
+            // Normally b is the first balance equation, but if not, reverse the recombination expression exponents
             if (balanceEquations[0].find("b") != std::string::npos) {
                 kpexp = ((a / totalVariables) / ((pow(b / totalVariables, abs(exponents[1]))) * (pow(c / totalVariables, abs(exponents[2]))))) * pow(pressure, deltn);
                 //System::Windows::Forms::MessageBox::Show("kpexp 1: " + kpexp.ToString());
@@ -888,8 +888,8 @@ static std::tuple<double, double, std::vector<double>, double, double, double> e
             kpexp = ((a / totalVariables) / (pow(b / totalVariables, abs(exponents[1])))) * pow(pressure, deltn);
             //System::Windows::Forms::MessageBox::Show("kpexp 2: " + kpexp.ToString());
         }
-        else { // otherwise, must be a and c
-            kpexp = ((a / totalVariables) / (pow(c / totalVariables, abs(exponents[2])))) * pow(pressure, deltn);
+        else { // otherwise, must be a and c (should not be possible, but just in case)
+            kpexp = ((a / totalVariables) / (pow(c / totalVariables, abs(exponents[1])))) * pow(pressure, deltn);
             //System::Windows::Forms::MessageBox::Show("kpexp 3: " + kpexp.ToString());
         }
 
@@ -1114,6 +1114,157 @@ std::tuple<double, double, double, double> incompleteCombustion(const std::strin
 //
 // INCOMPLETE COMBUSTION SECTION --------------------------------------------------------------------------------------------------
 //
+
+//
+// EXTENDED INCOMPLETE COMBUSTION SECTION ------------------------------------------------------------------------------------------
+//
+
+static std::tuple<double, double, std::vector<double>, double, double, double> extendedExperimentalKpHandler(const std::vector<std::string>& reactantsCompounds, const std::vector<double>& reactantsCoeff, const std::vector<std::string>& productsCompounds, const std::vector<double>& productsCoeff, const std::vector<std::string>& selectedKpExp, const double& leftEnth, const double& pressure, const double& kptheor, const double& tolerance) {
+
+    // Binary FRACTION search setup
+    double lowx = 0;
+    double highx = 1.0;
+    double bestX = 0;  // Fallback value
+    double bestXError = INFINITY;
+
+    // Unpack the info tuple from the kp map for the selected kp expression in the listbox
+    const auto& [kpTuples, exponents] = kpVectors.at(selectedKpExp);
+
+    //Delta-n
+    double deltn = accumulate(exponents.begin(), exponents.end(), 0.0);
+
+    double kpTolerance = tolerance * abs(kptheor);  // Allowable enthalpy error
+
+    // SECOND LOOP - KP
+
+    for (int x = 0; x < 100; ++x) {
+
+
+        double midx = (lowx + highx) / 2.0;
+        double computedEnth = 0.0;
+        double a = midx;
+        double b = 0, c = 0;
+        double kpexp = 0.0;
+
+        std::string variableb = "b";
+        std::string variablec = "c";
+
+        // Setup the string vector balancEquations, to handle b and c numerically
+        auto balanceEquations = balanceEquationsHandler(reactantsCompounds, reactantsCoeff, productsCompounds, productsCoeff, selectedKpExp, midx);
+
+        // Check which balance equation contains b and which c, then calculate the respective variable
+        // eq example: "4.00 = 3.00*2 + b*3"
+        for (auto& eq : balanceEquations) {
+            size_t pos_b = eq.find("b");
+            if (pos_b != std::string::npos) {
+                // Calculate b
+                b = solve_linear_equation(evaluate_numeric_expressions(eq), variableb);
+            }
+            size_t pos_c = eq.find("c");
+            if (pos_c != std::string::npos) {
+                // Calculate c
+                c = solve_linear_equation(evaluate_numeric_expressions(eq), variablec);
+            }
+        }
+
+        // Calculate total a+b+c
+        double totalVariables = a + b + c;
+
+        //System::Windows::Forms::MessageBox::Show("a: " + a.ToString() + "\n" + "b: " + b.ToString() + "\n" + "c: " + c.ToString());
+
+        // If any of these is 0, experimental kp will be NaN, so ignore this iteration
+        if (b == 0 && c == 0 || totalVariables == 0) { continue; }
+
+        // Setup the string vector to evaluate the right enthalpy
+        std::vector<std::string> symbolicProductsCoeffs = symbolicProductsCoeffHandler(productsCompounds, productsCoeff, selectedKpExp);
+
+        // Setup valued coefficients for right enthalpy
+        std::vector<double> evalProductsCoeffs = simpleEvalHandler(symbolicProductsCoeffs, a, b, c);
+
+        // Calculate right enthalpy of formation
+        double rightEnth = 0.0;
+        for (int p = 0; p < productsCompounds.size(); ++p) {
+            rightEnth += evalProductsCoeffs[p] * enthalpies[productsCompounds[p]];
+        }
+
+        // Target enthalpy of formation
+        double targetEnth = leftEnth - rightEnth;
+
+        // If c AND b exist, calculate extended experimental kp
+        if (b != 0 && c != 0) {
+            // Normally b is the first balance equation, but if not, reverse the recombination expression exponents
+            if (balanceEquations[0].find("b") != std::string::npos) {
+                kpexp = ((a / totalVariables) / ((pow(b / totalVariables, abs(exponents[1]))) * (pow(c / totalVariables, abs(exponents[2]))))) * pow(pressure, deltn);
+                //System::Windows::Forms::MessageBox::Show("kpexp 1: " + kpexp.ToString());
+            }
+            else {
+                kpexp = ((a / totalVariables) / ((pow(b / totalVariables, abs(exponents[2]))) * (pow(c / totalVariables, abs(exponents[1]))))) * pow(pressure, deltn);
+            }
+
+        } // Otherwise, only a and b
+        else if (b != 0) {
+            kpexp = ((a / totalVariables) / (pow(b / totalVariables, abs(exponents[1])))) * pow(pressure, deltn);
+            //System::Windows::Forms::MessageBox::Show("kpexp 2: " + kpexp.ToString());
+        }
+        else { // otherwise, must be a and c (should not be possible, but just in case)
+            kpexp = ((a / totalVariables) / (pow(c / totalVariables, abs(exponents[1])))) * pow(pressure, deltn);
+            //System::Windows::Forms::MessageBox::Show("kpexp 3: " + kpexp.ToString());
+        }
+
+        //System::Windows::Forms::MessageBox::Show("kpexp: " + kpexp.ToString());
+
+        // At this point, check if experimental kp is not NaN to continue, otherwise go to the next step in the loop
+        if (isnan(kpexp)) { continue; };
+
+        // Calculate the kp error
+        double kperror = kpexp - kptheor;
+
+        //System::Windows::Forms::MessageBox::Show("A: " + a.ToString() + "\n" + "B: " + b.ToString() + "\n" + "C: " + c.ToString() + "\n" + "Left Enthalpy : " + leftEnth.ToString() + "\n" + "Right Enthalpy : " + rightEnth.ToString() + "\n"
+        //+ "Target Enthalpy: " + targetEnth.ToString() + "\n" + "\n" + "Theoretical Kp: " + kptheor.ToString() + "\n" 
+        //+ "Experimental Kp: " + kpexp.ToString() + "\n" + "Kp Error: " + kperror.ToString() + "\n" + "Kp Tolerance: " + kpTolerance.ToString());
+
+
+        // Track best x solution
+        if (abs(kperror) < bestXError) {
+            bestXError = abs(kperror);
+            bestX = midx;
+        }
+
+        if (abs(kperror) <= kpTolerance) {
+            //System::Windows::Forms::MessageBox::Show("Correct Kp fraction: " + a.ToString());
+            return { {1},{targetEnth},{evalProductsCoeffs},{a},{b},{c} };
+        }
+
+        // Update x search bounds
+        if (kperror > 0) {
+            highx = midx; // Too high, search lower half
+        }
+        else {
+            lowx = midx; // Too low, search upper half
+        }
+
+        // Early exit if the range is too small
+        if ((highx - lowx) < 0.000000000000000000000000000001) { //1E-30 kp precision
+            //System::Windows::Forms::MessageBox::Show("X ran out of precision");
+            return { {0},{0},{0,0},{0},{0},{0} };
+        }
+
+        //System::Windows::Forms::MessageBox::Show("Kp fraction: " + a.ToString());
+
+    }
+
+
+    //return { {0},{0},{0,0} };
+
+}
+
+
+
+
+//
+// EXTENDED INCOMPLETE COMBUSTION SECTION ------------------------------------------------------------------------------------------
+//
+
 
 //
 // MAIN BEHAVIOR SECTION --------------------------------------------------------------------------------------------------
