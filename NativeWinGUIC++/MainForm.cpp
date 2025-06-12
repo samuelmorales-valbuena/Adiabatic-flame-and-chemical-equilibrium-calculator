@@ -596,8 +596,25 @@ double completeCombustion(const std::string& reactantsInput, const std::string& 
 // INCOMPLETE COMBUSTION SECTION --------------------------------------------------------------------------------------------------
 //
 
+// Helper function to remove repeated items, to sanitize repeated compounds in a several kp expression input scenario
+std::vector<std::string> multipleKpExpSanitizer(const std::vector<std::vector<std::string>> &allSelectedKpExp) {
+    
+    std::vector<std::string> sanitizedVector;
+
+    for (size_t i = 0; i < allSelectedKpExp.size(); ++i) {
+        auto particularKpExp = allSelectedKpExp[i];
+        for (size_t j = 0; j < particularKpExp.size(); ++j) {
+            if (std::find(sanitizedVector.begin(), sanitizedVector.end(), particularKpExp[j]) == sanitizedVector.end()) {
+                sanitizedVector.push_back(particularKpExp[j]);
+            }
+        }
+    }
+
+    return sanitizedVector;
+}
+
 // Function for incomplete combustion that returns mixed (numerical and symbolic) coefficients for the products as strings
-std::vector<std::string> symbolicProductsCoeffHandler(const std::vector<std::string> &productsCompounds, const std::vector<double> &productsCoeff, const std::vector<std::string> &selectedKpExp) {
+std::vector<std::string> symbolicProductsCoeffHandler(const std::vector<std::string> &productsCompounds, const std::vector<double> &productsCoeff, const std::vector<std::vector<std::string>>& allSelectedKpExp) {
     
     // Setup symbolicProductsCoeff equal to productsCoeff
     std::vector<std::string> symbolicProductsCoeff;
@@ -605,13 +622,15 @@ std::vector<std::string> symbolicProductsCoeffHandler(const std::vector<std::str
         symbolicProductsCoeff.push_back(std::to_string(productsCoeff[i]));
     }
 
+    auto sanitizedKpComps = multipleKpExpSanitizer(allSelectedKpExp);
+
     // Replace coefficients of recombining products for variables in symbolicProductsCoeff
     for (size_t i = 0; i < productsCompounds.size(); ++i) {
         // If the product compound matches one of the recombining compounds,
-        if (std::find(selectedKpExp.begin(), selectedKpExp.end(), productsCompounds[i]) != selectedKpExp.end()) {
+        if (std::find(sanitizedKpComps.begin(), sanitizedKpComps.end(), productsCompounds[i]) != sanitizedKpComps.end()) {
             // Assign a symbolic variable (a, b, c...) based on the compound's position in selectedKpExp
-            auto it = std::find(selectedKpExp.begin(), selectedKpExp.end(), productsCompounds[i]);
-            size_t idx = std::distance(selectedKpExp.begin(), it);
+            auto it = std::find(sanitizedKpComps.begin(), sanitizedKpComps.end(), productsCompounds[i]);
+            size_t idx = std::distance(sanitizedKpComps.begin(), it);
             char var = 'a' + idx;
             symbolicProductsCoeff[i] = std::string(1, var); // Replace that item with "a", "b", etc. in the symbolic-numeric mixed coefficient vector
         }
@@ -644,12 +663,12 @@ std::vector<double> simpleEvalHandler(const std::vector<std::string> &stringVect
 }
 
  // Function that builds the atom balance equations, where every equation is a string in the returned string vector
-std::vector<std::string> balanceEquationsHandler(const std::vector<std::string> &reactantsCompounds, const std::vector<double> &reactantsCoeff, const std::vector<std::string> &productsCompounds, const std::vector<double> &productsCoeff, const std::vector<std::string> &selectedKpExp, const double &midx) {
+std::vector<std::string> balanceEquationsHandler(const std::vector<std::string> &reactantsCompounds, const std::vector<double> &reactantsCoeff, const std::vector<std::string> &productsCompounds, const std::vector<double> &productsCoeff, const std::vector<std::vector<std::string>>& allSelectedKpExp, const double &midx) {
    
     std::vector<std::string> balanceEquations;
 
     // Setup symbolicProductsCoeff equal to productsCoeff
-    std::vector<std::string> symbolicProductsCoeff = symbolicProductsCoeffHandler(productsCompounds, productsCoeff, selectedKpExp);
+    std::vector<std::string> symbolicProductsCoeff = symbolicProductsCoeffHandler(productsCompounds, productsCoeff, allSelectedKpExp);
 
     // Setup of vector storing all the unique elements present in both sides
     std::set<std::string> uniqueElements;
@@ -801,7 +820,7 @@ std::string evaluate_numeric_expressions(const std::string& input) {
     return result;
 }
 
-static std::tuple<double, double, std::vector<double>, double, double, double> expKpHandler(const std::vector<std::string> &reactantsCompounds, const std::vector<double> &reactantsCoeff, const std::vector<std::string> &productsCompounds, const std::vector<double> &productsCoeff, const std::vector<std::string> &selectedKpExp,const double &leftEnth, const double &pressure, const double &kptheor, const double &tolerance) {
+static std::tuple<double, double, std::vector<double>, double, double, double> expKpHandler(const std::vector<std::string> &reactantsCompounds, const std::vector<double> &reactantsCoeff, const std::vector<std::string> &productsCompounds, const std::vector<double> &productsCoeff, const std::vector<std::vector<std::string>> &allSelectedKpExp,const double &leftEnth, const double &pressure, const std::vector<double> &allKpTheor, const double &tolerance) {
 
     // Binary FRACTION search setup
     double lowx = 0;
@@ -809,13 +828,64 @@ static std::tuple<double, double, std::vector<double>, double, double, double> e
     double bestX = 0;  // Fallback value
     double bestXError = INFINITY;
 
-    // Unpack the info tuple from the kp map for the selected kp expression in the listbox
-    const auto& [kpTuples, exponents] = kpVectors.at(selectedKpExp);
+    // Vector that stores every delta-n
+    std::vector<double> deltaNVector;
+    deltaNVector.clear(); // Clear it
 
-    //Delta-n
-    double deltn = accumulate(exponents.begin(), exponents.end(), 0.0);
+    // Vector that stores the tolerances
+    std::vector<double> kpToleranceVector;
+    kpToleranceVector.clear(); // Clear it
 
-    double kpTolerance = tolerance * abs(kptheor);  // Allowable enthalpy error
+    // For every selected kp expression, extract the correct kp exponents, calculate delta-n and assign a tolerance to its respective theoretical kp
+    for (size_t v = 0; v < allSelectedKpExp.size(); ++v) {
+
+        // Unpack the info tuple from the kp map for the selected kp expression in the listbox
+        const auto& [kpTuples, exponents] = kpVectors.at(allSelectedKpExp[v]);
+
+        //Delta-n
+        double deltaN = accumulate(exponents.begin(), exponents.end(), 0.0);
+
+        // How far from theoretical kp can experimental kp be, as a percentage of kptheor
+        double kpTolerance = tolerance * abs(allKpTheor[v]);  // Allowable enthalpy error
+
+        /**********************************************************************************/
+
+        // Add delta-n
+        deltaNVector.push_back(deltaN);
+
+        // Add kp tolerance
+        kpToleranceVector.push_back(kpTolerance);
+
+    }
+
+    // How many unique compounds with symbolic coefficients are there
+    //int howManyVariablesToReserve = multipleKpExpSanitizer(allSelectedKpExp).size();
+
+    // String vector that will hold all necessary variables
+    //std::vector<std::string> allNecessaryLetterVariables;
+
+    // Populate string vector holding all necessary variables besides "a"
+    //for (int b = 0; b < howManyVariablesToReserve; ++b) {
+
+    //}
+
+    // Vector with all present variables, before cleaning
+    auto allPresentVarsVector = symbolicProductsCoeffHandler(productsCompounds, productsCoeff, allSelectedKpExp);
+
+    // Cleaned vector with usable variables
+    std::vector<std::string> usableVarsVector;
+
+    // Take the usable variables for the equation system from allPresentVarsVector and put them in usableVarsVector
+    for (auto &itm : allPresentVarsVector) {
+        if (itm != "a" && !std::all_of(itm.begin(), itm.end(), ::isdigit)) {
+            usableVarsVector.push_back(itm);
+        }
+        else continue;
+    }
+
+    
+
+    
 
     // SECOND LOOP - KP
 
@@ -828,11 +898,9 @@ static std::tuple<double, double, std::vector<double>, double, double, double> e
         double b = 0, c = 0;
         double kpexp = 0.0;
 
-        std::string variableb = "b";
-        std::string variablec = "c";
+        // Setup the string vector balanceEquations, to handle b and c numerically
+        auto balanceEquations = balanceEquationsHandler(reactantsCompounds, reactantsCoeff, productsCompounds, productsCoeff, allSelectedKpExp, midx);
 
-        // Setup the string vector balancEquations, to handle b and c numerically
-        auto balanceEquations = balanceEquationsHandler(reactantsCompounds, reactantsCoeff, productsCompounds, productsCoeff, selectedKpExp, midx);
 
         // Check which balance equation contains b and which c, then calculate the respective variable
         // eq example: "4.00 = 3.00*2 + b*3"
@@ -940,7 +1008,7 @@ static std::tuple<double, double, std::vector<double>, double, double, double> e
 
 }
 
-std::tuple<double, double, double, double> incompleteCombustion(const std::string& reactantsInput, const std::string& productsInput, const double &tolerance,const std::string &recombChecklist,const double &pressure) {
+std::tuple<double, double, double, double> incompleteCombustion(const std::string& reactantsInput, const std::string& productsInput, const double &tolerance,const std::vector<std::string> &recombChecklist,const double &pressure) {
     
     // Setup coefficient and compound vectors for reactants and products
     std::vector<double> reactantsCoeff;
@@ -964,8 +1032,25 @@ std::tuple<double, double, double, double> incompleteCombustion(const std::strin
     // Set standard temperature divided by 1000
     double T0 = 298.15 / 1000.0;
 
-    // Convert the selected kp checklist item to working string
-    std::vector<std::string> selectedKpExp = splitKpString(recombChecklist);
+    /*************************************************************************************************************/
+    /*************************************************************************************************************/
+    /*************************************************************************************************************/
+
+    // Vector to get the selected kp checklist items
+    std::vector<std::vector<std::string>> allSelectedKpExp;
+
+    // Add every selected kp expression, formatted by the function
+    for (size_t i = 0; i < recombChecklist.size(); ++i) {
+        allSelectedKpExp[i] = splitKpString(recombChecklist[i]);
+    }
+
+    // Save how many were selected
+    int howManyKpExp = allSelectedKpExp.size();
+
+    
+
+
+
 
     // Binary TEMPERATURE search setup
     double low = t_min;
@@ -980,13 +1065,8 @@ std::tuple<double, double, double, double> incompleteCombustion(const std::strin
     for (int i = 0; i < reactantsCompounds.size(); ++i) {
         leftEnth += reactantsCoeff[i] * enthalpies[reactantsCompounds[i]];
     }
-    //System::Windows::Forms::MessageBox::Show("Left Enthalpy: " + leftEnth.ToString());
 
-    // Unpack the info tuple from the kp map for the selected kp expression
-    const auto& [kpTuples, exponents] = kpVectors.at(selectedKpExp);
     
-    // Control Message
-    //System::Windows::Forms::MessageBox::Show("The Main loop starts now");
 
     double a = 0.0, b = 0.0, c = 0.0;
 
@@ -1000,33 +1080,40 @@ std::tuple<double, double, double, double> incompleteCombustion(const std::strin
         double enthError = 0.0;
         double computedEnth = 0.0;
 
-        // Find the matching Kp coefficient set for the current temperature
-        auto it = find_if(kpTuples.begin(), kpTuples.end(), [mid](const auto& entry) {
-            double Tmin = std::get<0>(entry);
-            double Tmax = std::get<1>(entry);
-            return mid >= Tmin && mid <= Tmax;
-            });
+        // All theoretical kp container
+        std::vector<double> allKpTheor;
+        allKpTheor.clear();
 
-        if (it == kpTuples.end()) {
-            System::Windows::Forms::MessageBox::Show("No Kp data found for selected recombination");
-            continue;
+        // For every selected kp expression, calculate theoretical kp, and store it
+        for (size_t r = 0; r < howManyKpExp; ++r) {
+
+            // Unpack the info tuple from the kp map for the selected kp expression
+            const auto& [kpTuples, exponents] = kpVectors.at(allSelectedKpExp[r]);
+
+            // Find the matching Kp coefficient set for the current temperature
+            auto it = find_if(kpTuples.begin(), kpTuples.end(), [mid](const auto& entry) {
+                double Tmin = std::get<0>(entry);
+                double Tmax = std::get<1>(entry);
+                return mid >= Tmin && mid <= Tmax;
+                });
+
+            // A-E data to append
+            const std::vector<double>& kpcoeffs = std::get<2>(*it);
+
+            // Unpack coefficients for clarity (append previous data)
+            double A = kpcoeffs[0];
+            double B = kpcoeffs[1];
+            double C = kpcoeffs[2];
+            double D = kpcoeffs[3];
+            double E = kpcoeffs[4];
+
+            // Calculate theoretical kp
+            double kptheor = pow(10, A * pow(mid, 4) + B * pow(mid, 3) + C * pow(mid, 2) + D * mid + E);
+
+            allKpTheor.push_back(kptheor);
+
         }
-
-        //Delta-n
-        double deltn = accumulate(exponents.begin(), exponents.end(), 0.0);
-
-        // A-E data to append
-        const std::vector<double>& kpcoeffs = std::get<2>(*it);
-
-        // Unpack coefficients for clarity (append previous data)
-        double A = kpcoeffs[0];
-        double B = kpcoeffs[1];
-        double C = kpcoeffs[2];
-        double D = kpcoeffs[3];
-        double E = kpcoeffs[4];
-
-        // Calculate theoretical kp
-        double kptheor = pow(10, A * pow(mid, 4) + B * pow(mid, 3) + C * pow(mid, 2) + D * mid + E);
+   
         
         // Calculate experimental kp and compare it to theoretical kp
         std::tuple<double, double, std::vector<double>, double, double, double> expKpTuple = expKpHandler(reactantsCompounds, reactantsCoeff, productsCompounds, productsCoeff, selectedKpExp, leftEnth, pressure, kptheor, tolerance);
@@ -1047,8 +1134,6 @@ std::tuple<double, double, double, double> incompleteCombustion(const std::strin
 
         // If kp matches,
         if (std::get<0>(expKpTuple)) {
-
-            //System::Windows::Forms::MessageBox::Show("It's gone in");
             
             std::vector<double> mixProductCoeffsCP = std::get<2>(expKpTuple); // Get the fully evaluated coefficients for Cp calculation
 
