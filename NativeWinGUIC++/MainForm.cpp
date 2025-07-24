@@ -21,6 +21,7 @@
 #include <exprtk.hpp>
 #include <regex>
 #include <msclr\marshal_cppstd.h>
+#include <nlopt.hpp>
 
 using namespace System;
 
@@ -639,31 +640,26 @@ std::vector<std::string> symbolicProductsCoeffHandler(const std::vector<std::str
 }
 
 // Function that converts elements in a string vector to doubles, replacing symbolic variables for their provided value
-std::vector<double> simpleEvalHandler(const std::vector<std::string> &stringVector, const double &a, const double &b, const double &c) {
+std::vector<double> simpleEvalHandler(const std::vector<std::string> &stringVector, const std::vector<double> &x) {
     std::vector<double> evaluatedDoubleVector;
-    for (auto& term : stringVector) {
-        size_t pos_a = term.find("a");
-        if (pos_a != std::string::npos) {
-            evaluatedDoubleVector.push_back(a);
-            continue;
+    for (const auto& term : stringVector) {
+        if (term.size() == 1 && std::isalpha(term[0])) {
+            // Map letter to corresponding index in x
+            size_t index = term[0] - 'a';
+            if (index < x.size()) {
+                evaluatedDoubleVector.push_back(x[index]);
+            }
         }
-        size_t pos_b = term.find("b");
-        if (pos_b != std::string::npos) {
-            evaluatedDoubleVector.push_back(b);
-            continue;
+        else {
+            // Parse as number
+            evaluatedDoubleVector.push_back(std::stod(term));
         }
-        size_t pos_c = term.find("c");
-        if (pos_c != std::string::npos) {
-            evaluatedDoubleVector.push_back(c);
-            continue;
-        }
-        evaluatedDoubleVector.push_back(stod(term));
     }
     return evaluatedDoubleVector;
 }
 
  // Function that builds the atom balance equations, where every equation is a string in the returned string vector
-std::vector<std::string> balanceEquationsHandler(const std::vector<std::string> &reactantsCompounds, const std::vector<double> &reactantsCoeff, const std::vector<std::string> &productsCompounds, const std::vector<double> &productsCoeff, const std::vector<std::vector<std::string>>& allSelectedKpExp, const double &midx) {
+std::vector<std::string> balanceEquationsHandler(const std::vector<std::string> &reactantsCompounds, const std::vector<double> &reactantsCoeff, const std::vector<std::string> &productsCompounds, const std::vector<double> &productsCoeff, const std::vector<std::vector<std::string>>& allSelectedKpExp) {
    
     std::vector<std::string> balanceEquations;
 
@@ -707,27 +703,107 @@ std::vector<std::string> balanceEquationsHandler(const std::vector<std::string> 
             const auto& compound = productsCompounds[i];
             int count = atom_counts[compound][element];
             if (count > 0) {
-                rhs += (rhs.empty() ? "" : "+") + symbolicProductsCoeff[i] + "*" + std::to_string(count);
+                rhs += (rhs.empty() ? "" : "-") + symbolicProductsCoeff[i] + "*" + std::to_string(count);
             }
         }
 
         // Add the balance equation for the current element
-        balanceEquations.push_back(lhs + "=" + rhs);
-    }
-
-    // Replace "a" in the balanceEquations for the actual value of a (midx outside)
-    for (auto& eq : balanceEquations) {
-        size_t pos = eq.find("a");
-        if (pos != std::string::npos) {
-            eq.replace(pos, 1, std::to_string(midx));
-        }
+        balanceEquations.push_back(lhs + "-" + rhs);
     }
 
     return balanceEquations;
 
 }
 
+// Function that builds the kptheor~kpexp non-linear equations, where every equation is a string in the returned string vector
+std::vector<std::string> nonLinearEquationsBuilder(const std::vector<double>& allKpTheor, const std::vector<std::vector<std::string>>& allSelectedKpExp, const std::vector<std::string> &orderedProductCompounds, const std::vector<std::string> &orderedProductCoefficients, const double &pressure, const std::vector<double> &deltn, const std::vector<std::vector<double>> &expKpExponentsVector) {
+    // Output vector
+    std::vector<std::string> nonLinearEquations;
 
+    // Experimental kp expressions vector
+    std::vector<std::string> expKpExpressions(allSelectedKpExp.size());
+
+    // Vector that stores the indexes for variable-to-compound correlation
+    std::vector<std::vector<int>> distances(allSelectedKpExp.size());
+
+    // String with the sum of all product variable coefficients
+    std::string varSum;
+    for (size_t n = 0; n < orderedProductCoefficients.size(); ++n) {
+        varSum += (varSum.empty() ? "" : "+") + orderedProductCoefficients[n];
+    }
+
+    // Build the experimental kp expression
+    for (size_t j = 0; j < allSelectedKpExp.size(); ++j) {
+
+        std::vector<std::string> unorderedCompNames = allSelectedKpExp[j];
+
+        for (auto unordComp : unorderedCompNames){
+            auto itx = find(orderedProductCompounds.begin(), orderedProductCompounds.end(), unordComp);
+            distances[j].push_back(distance(orderedProductCompounds.begin(), itx));
+        }
+
+        expKpExpressions[j] = std::string("(") + "(" + orderedProductCoefficients[distances[j][0]] + "/" + varSum + ")" + "/" + "(" + "(" + "(" + orderedProductCoefficients[distances[j][1]] + "/" + varSum + ")" + "^" + "(" + std::to_string(expKpExponentsVector[j][1]) + ")" + ")" + "*" + "(" + "(" + orderedProductCoefficients[distances[j][2]] + "/" + varSum + ")" + "^" + "(" + std::to_string(expKpExponentsVector[j][2]) + ")" + ")" + ")" + ")" + "*" + "(" + std::to_string(pressure) + ")" + "^" + "(" + std::to_string(deltn[j]) + ")";
+    }
+
+    // Build the non-linear equation
+    for (size_t i = 0; i < allKpTheor.size(); ++i) {
+        nonLinearEquations.push_back(std::to_string(allKpTheor[i]) + " - " + expKpExpressions[i]);
+    }
+    return nonLinearEquations;
+}
+
+struct exprtkData {
+    std::vector<std::string> equations;
+    std::vector<std::string> varNames;
+};
+
+double objective_function(const std::vector<double>& x, std::vector<double>& grad, void* f_data) {
+
+    // Import the info struct from the void* data
+    exprtkData* Info = static_cast<exprtkData*>(f_data);
+
+    // Copy the x vector, so as to work with it
+    std::vector<double> a = x;
+
+    // Create the vector holding all expressions, the parser and the symbol table
+    std::vector<exprtk::expression<double>> expressions;
+    exprtk::parser<double> parser;
+    exprtk::symbol_table<double> symbol_table;
+
+    // Add all the present variables to the symbol table, and their respective value (given by the nelder-mead algorithm)
+    for (size_t i = 0; i < Info->varNames.size(); ++i) {
+        symbol_table.add_variable(Info->varNames[i], a[i]);
+    }
+    symbol_table.add_constants(); // And add constants too
+
+    // Check all values guessed by nelder mead, if any of them is <=0 discard the solution by giving a huge penalty of 1e10
+    for (size_t j = 0; j < x.size(); ++j) {
+        if (a[j] <= 0) return 1e10;
+    }
+
+    // Take every equation in the struct and make it an exprtk expression: register the symbols, parse it and add it to the expressions vector
+    for (auto& eq : Info->equations) {
+        exprtk::expression<double> e;
+        e.register_symbol_table(symbol_table);
+        parser.compile(eq, e);
+        expressions.push_back(e);
+    }
+
+    //System::Windows::Forms::MessageBox::Show("Expressions: " + gcnew String (Info->equations[0].c_str()) + "\n" + gcnew String(Info->equations[1].c_str()) + "\n" + gcnew String(Info->equations[2].c_str()));
+
+    // Set the sum of the squares, which nlopt minimizes
+    double sum_sq = 0.0;
+
+    // Evaluate the expressions and get their squares, add them and return the sum for nlopt
+    for (auto& e : expressions) {
+        double val = e.value();
+        sum_sq += val * val;
+    }
+
+    //System::Windows::Forms::MessageBox::Show(/*"a: " + a[0].ToString() + "\n" + "b: " + a[1].ToString() + "\n" + "c: " + a[2].ToString() + "\n" + */"Sumsq: " + sum_sq.ToString());
+
+    return sum_sq;  // return the sum of squares
+}
 
 struct EquationSide {
     double constant = 0.0;
@@ -820,21 +896,15 @@ std::string evaluate_numeric_expressions(const std::string& input) {
     return result;
 }
 
-static std::tuple<double, double, std::vector<double>, double, double, double> expKpHandler(const std::vector<std::string> &reactantsCompounds, const std::vector<double> &reactantsCoeff, const std::vector<std::string> &productsCompounds, const std::vector<double> &productsCoeff, const std::vector<std::vector<std::string>> &allSelectedKpExp,const double &leftEnth, const double &pressure, const std::vector<double> &allKpTheor, const double &tolerance) {
-
-    // Binary FRACTION search setup
-    double lowx = 0;
-    double highx = 1.0;
-    double bestX = 0;  // Fallback value
-    double bestXError = INFINITY;
+static std::vector<double> expKpHandler(const std::vector<std::string> &reactantsCompounds, const std::vector<double> &reactantsCoeff, const std::vector<std::string> &productsCompounds, const std::vector<double> &productsCoeff, const std::vector<std::vector<std::string>> &allSelectedKpExp, const double &pressure, const std::vector<double> &allKpTheor) {
 
     // Vector that stores every delta-n
     std::vector<double> deltaNVector;
     deltaNVector.clear(); // Clear it
 
-    // Vector that stores the tolerances
-    std::vector<double> kpToleranceVector;
-    kpToleranceVector.clear(); // Clear it
+    // Vector that stores the exp kp exponents
+    std::vector<std::vector<double>> expKpExponentsVector;
+    expKpExponentsVector.clear(); // Clear it
 
     // For every selected kp expression, extract the correct kp exponents, calculate delta-n and assign a tolerance to its respective theoretical kp
     for (size_t v = 0; v < allSelectedKpExp.size(); ++v) {
@@ -845,31 +915,17 @@ static std::tuple<double, double, std::vector<double>, double, double, double> e
         //Delta-n
         double deltaN = accumulate(exponents.begin(), exponents.end(), 0.0);
 
-        // How far from theoretical kp can experimental kp be, as a percentage of kptheor
-        double kpTolerance = tolerance * abs(allKpTheor[v]);  // Allowable enthalpy error
-
         /**********************************************************************************/
 
         // Add delta-n
         deltaNVector.push_back(deltaN);
 
-        // Add kp tolerance
-        kpToleranceVector.push_back(kpTolerance);
+        // Add set of exp kp exponents
+        expKpExponentsVector.push_back(exponents);
 
     }
 
-    // How many unique compounds with symbolic coefficients are there
-    //int howManyVariablesToReserve = multipleKpExpSanitizer(allSelectedKpExp).size();
-
-    // String vector that will hold all necessary variables
-    //std::vector<std::string> allNecessaryLetterVariables;
-
-    // Populate string vector holding all necessary variables besides "a"
-    //for (int b = 0; b < howManyVariablesToReserve; ++b) {
-
-    //}
-
-    // Vector with all present variables, before cleaning
+    // Vector with all present variables, before cleaning them
     auto allPresentVarsVector = symbolicProductsCoeffHandler(productsCompounds, productsCoeff, allSelectedKpExp);
 
     // Cleaned vector with usable variables
@@ -877,138 +933,169 @@ static std::tuple<double, double, std::vector<double>, double, double, double> e
 
     // Take the usable variables for the equation system from allPresentVarsVector and put them in usableVarsVector
     for (auto &itm : allPresentVarsVector) {
-        if (itm != "a" && !std::all_of(itm.begin(), itm.end(), ::isdigit)) {
+        if (!std::all_of(itm.begin(), itm.end(), ::isdigit)) {
             usableVarsVector.push_back(itm);
         }
         else continue;
     }
 
-    
+    // Get the atom balance equations
+    std::vector<std::string> balanceEquations = balanceEquationsHandler(reactantsCompounds, reactantsCoeff, productsCompounds, productsCoeff, allSelectedKpExp);
 
-    
+    // Get the kp nonlinear equations
+    std::vector<std::string> nonLinearEquations = nonLinearEquationsBuilder(allKpTheor, allSelectedKpExp, productsCompounds, usableVarsVector, pressure, deltaNVector, expKpExponentsVector);
 
-    // SECOND LOOP - KP
+    //System::Windows::Forms::MessageBox::Show(gcnew String(balanceEquations[0].c_str()) + "\n" + gcnew String(balanceEquations[1].c_str()) + "\n" + gcnew String(nonLinearEquations[0].c_str()));
 
-    for (int x = 0; x < 100; ++x) {
+    std::vector<std::string> nonLinearSystem;
+    nonLinearSystem.insert(std::end(nonLinearSystem), std::begin(balanceEquations), std::end(balanceEquations));
+    nonLinearSystem.insert(std::end(nonLinearSystem), std::begin(nonLinearEquations), std::end(nonLinearEquations));
 
+    //System::Windows::Forms::MessageBox::Show(gcnew String(nonLinearSystem[0].c_str()) + "\n" + gcnew String(nonLinearSystem[1].c_str()) + "\n" + gcnew String(nonLinearSystem[2].c_str()));
 
-        double midx = (lowx + highx) / 2.0;
-        double computedEnth = 0.0;
-        double a = midx;
-        double b = 0, c = 0;
-        double kpexp = 0.0;
+    // Fill the struct objects before importing to the objective_function
+    exprtkData nelderMeadInfo{
+        nonLinearSystem,
+        usableVarsVector
+    };
 
-        // Setup the string vector balanceEquations, to handle b and c numerically
-        auto balanceEquations = balanceEquationsHandler(reactantsCompounds, reactantsCoeff, productsCompounds, productsCoeff, allSelectedKpExp, midx);
+    // Run nelder mead with as many variables as present
+    nlopt::opt opt(nlopt::LN_NELDERMEAD, nelderMeadInfo.varNames.size());
 
+    // Lower bounds, one for each present variable
+    std::vector<double> lb(nelderMeadInfo.varNames.size(), 0.0);
+    opt.set_lower_bounds(lb);
+    //opt.set_upper_bounds({10.0,10.0,10.0});
 
-        // Check which balance equation contains b and which c, then calculate the respective variable
-        // eq example: "4.00 = 3.00*2 + b*3"
-        for (auto& eq : balanceEquations) {
-            size_t pos_b = eq.find("b");
-            if (pos_b != std::string::npos) {
-                // Calculate b
-                b = solve_linear_equation(evaluate_numeric_expressions(eq), variableb);
-            }
-            size_t pos_c = eq.find("c");
-            if (pos_c != std::string::npos) {
-                // Calculate c
-                c = solve_linear_equation(evaluate_numeric_expressions(eq), variablec);
-            }
-        }
+    // Objective function
+    opt.set_min_objective(objective_function, static_cast<void*>(&nelderMeadInfo));
+    opt.set_stopval(1e-15);
 
-        // Calculate total a+b+c
-        double totalVariables = a + b + c;
+    std::vector<double> x(nelderMeadInfo.varNames.size(), 1.0); // initial guesses, vector is as big as there are variables
+    //std::vector<double> x = {1.97, 0.04, 0.00005};
+    double minf;
 
-        //System::Windows::Forms::MessageBox::Show("a: " + a.ToString() + "\n" + "b: " + b.ToString() + "\n" + "c: " + c.ToString());
+    nlopt::result result = opt.optimize(x, minf);
 
-        // If any of these is 0, experimental kp will be NaN, so ignore this iteration
-        if (b == 0 && c == 0 || totalVariables == 0) { continue; }
+    //System::Windows::Forms::MessageBox::Show("Sum of sq: " + minf);
 
-        // Setup the string vector to evaluate the right enthalpy
-        std::vector<std::string> symbolicProductsCoeffs = symbolicProductsCoeffHandler(productsCompounds, productsCoeff, selectedKpExp);
-
-        // Setup valued coefficients for right enthalpy
-        std::vector<double> evalProductsCoeffs = simpleEvalHandler(symbolicProductsCoeffs, a, b, c);
-
-        // Calculate right enthalpy of formation
-        double rightEnth = 0.0;
-        for (int p = 0; p < productsCompounds.size(); ++p) {
-            rightEnth += evalProductsCoeffs[p] * enthalpies[productsCompounds[p]];
-        }
-
-        // Target enthalpy of formation
-        double targetEnth = leftEnth - rightEnth;
-
-        // If c AND b exist, calculate extended experimental kp
-        if (b != 0 && c != 0) {
-            // Normally b is the first balance equation, but if not, reverse the recombination expression exponents
-            if (balanceEquations[0].find("b") != std::string::npos) {
-                kpexp = ((a / totalVariables) / ((pow(b / totalVariables, abs(exponents[1]))) * (pow(c / totalVariables, abs(exponents[2]))))) * pow(pressure, deltn);
-                //System::Windows::Forms::MessageBox::Show("kpexp 1: " + kpexp.ToString());
-            }
-            else {
-                kpexp = ((a / totalVariables) / ((pow(b / totalVariables, abs(exponents[2]))) * (pow(c / totalVariables, abs(exponents[1]))))) * pow(pressure, deltn);
-            }
-
-        } // Otherwise, only a and b
-        else if (b != 0) {
-            kpexp = ((a / totalVariables) / (pow(b / totalVariables, abs(exponents[1])))) * pow(pressure, deltn);
-            //System::Windows::Forms::MessageBox::Show("kpexp 2: " + kpexp.ToString());
-        }
-        else { // otherwise, must be a and c (should not be possible, but just in case)
-            kpexp = ((a / totalVariables) / (pow(c / totalVariables, abs(exponents[1])))) * pow(pressure, deltn);
-            //System::Windows::Forms::MessageBox::Show("kpexp 3: " + kpexp.ToString());
-        }
-
-        //System::Windows::Forms::MessageBox::Show("kpexp: " + kpexp.ToString());
-
-        // At this point, check if experimental kp is not NaN to continue, otherwise go to the next step in the loop
-        if (isnan(kpexp)) { continue; };
-
-        // Calculate the kp error
-        double kperror = kpexp - kptheor;
-
-        //System::Windows::Forms::MessageBox::Show("A: " + a.ToString() + "\n" + "B: " + b.ToString() + "\n" + "C: " + c.ToString() + "\n" + "Left Enthalpy : " + leftEnth.ToString() + "\n" + "Right Enthalpy : " + rightEnth.ToString() + "\n"
-        //+ "Target Enthalpy: " + targetEnth.ToString() + "\n" + "\n" + "Theoretical Kp: " + kptheor.ToString() + "\n" 
-        //+ "Experimental Kp: " + kpexp.ToString() + "\n" + "Kp Error: " + kperror.ToString() + "\n" + "Kp Tolerance: " + kpTolerance.ToString());
-
-
-        // Track best x solution
-        if (abs(kperror) < bestXError) {
-            bestXError = abs(kperror);
-            bestX = midx;
-        }
-
-        if (abs(kperror) <= kpTolerance) {
-            //System::Windows::Forms::MessageBox::Show("Correct Kp fraction: " + a.ToString());
-            return { {1},{targetEnth},{evalProductsCoeffs},{a},{b},{c} };
-        }
-
-        // Update x search bounds
-        if (kperror > 0) {
-            highx = midx; // Too high, search lower half
-        }
-        else {
-            lowx = midx; // Too low, search upper half
-        }
-
-        // Early exit if the range is too small
-        if ((highx - lowx) < 0.000000000000000000000000000001) { //1E-30 kp precision
-            //System::Windows::Forms::MessageBox::Show("X ran out of precision");
-            return { {0},{0},{0,0},{0},{0},{0} };
-        }
-
-        //System::Windows::Forms::MessageBox::Show("Kp fraction: " + a.ToString());
-
-    }
-
-    
-    //return { {0},{0},{0,0} };
+    return x;
 
 }
 
-std::tuple<double, double, double, double> incompleteCombustion(const std::string& reactantsInput, const std::string& productsInput, const double &tolerance,const std::vector<std::string> &recombChecklist,const double &pressure) {
+struct tempLoop
+{
+    int howmanykpexp;
+    std::vector<std::vector<std::string>> allselectedkpexp;
+    std::vector<std::string> reacComp;
+    std::vector<double> reacCoef;
+    std::vector<std::string> prodComp;
+    std::vector<double> prodCoef;
+    double press;
+    std::vector<std::string> symbprodcoef;
+    double leftenth;
+};
+
+
+double temps_objective_function(const std::vector<double>& t, std::vector<double>& grad, void* f_data) {
+
+    // Import the info struct from the void* data
+    tempLoop* tempInfo = static_cast<tempLoop*>(f_data);
+
+    // Copy the t vector, so as to work with it
+    double T = t[0];
+
+    double enthError = 0.0;
+    double computedEnth = 0.0;
+    double A = 0.0, B = 0.0, C = 0.0, D = 0.0, E = 0.0;
+
+    // All theoretical kp container
+    std::vector<double> allKpTheor;
+
+    // For every selected kp expression, calculate theoretical kp, and store it
+    for (size_t r = 0; r < tempInfo->howmanykpexp; ++r) {
+
+        // Unpack the info tuple from the kp map for the selected kp expression
+        const auto& [kpTuples, exponents] = kpVectors.at(tempInfo->allselectedkpexp[r]);
+
+        // Find the matching Kp coefficient set for the current temperature
+        auto it = find_if(kpTuples.begin(), kpTuples.end(), [T](const auto& entry) {
+            double Tmin = std::get<0>(entry);
+            double Tmax = std::get<1>(entry);
+            return T >= Tmin && T <= Tmax;
+            });
+
+        // A-E data to append
+        const std::vector<double>& kpcoeffs = std::get<2>(*it);
+
+        // Unpack coefficients for clarity (append previous data)
+        A = kpcoeffs[0];
+        B = kpcoeffs[1];
+        C = kpcoeffs[2];
+        D = kpcoeffs[3];
+        E = kpcoeffs[4];
+
+        // Calculate theoretical kp
+        double kptheor = pow(10, A * pow(T, 4) + B * pow(T, 3) + C * pow(T, 2) + D * T + E);
+
+        allKpTheor.push_back(kptheor);
+
+    }
+
+    // Calculate experimental kp and compare it to theoretical kp
+    std::vector<double> solutionsVector = expKpHandler(tempInfo->reacComp, tempInfo->reacCoef, tempInfo->prodComp, tempInfo->prodCoef, tempInfo->allselectedkpexp, tempInfo->press, allKpTheor);
+
+    //System::Windows::Forms::MessageBox::Show("Solutions 1: " + solutionsVector[0] + " " + solutionsVector[1] + " " + solutionsVector[2]);
+
+    // Get the vector of doubles fully evaluated, for the right enthalpy
+    std::vector<double> evaluatedProductsCoefficients = simpleEvalHandler(tempInfo->symbprodcoef, solutionsVector);
+
+    //System::Windows::Forms::MessageBox::Show("Solutions 1: " + solutionsVector[0] + " " + solutionsVector[1] + " " + solutionsVector[2] + "Solutions 2: " + evaluatedProductsCoefficients[0] + " " + evaluatedProductsCoefficients[1] + " " + evaluatedProductsCoefficients[2]);
+
+    // Calculate right enthalpy of formation
+    double rightEnth = 0.0;
+    for (int k = 0; k < tempInfo->prodComp.size(); ++k) {
+        rightEnth += evaluatedProductsCoefficients[k] * enthalpies[tempInfo->prodComp[k]];
+    }
+
+    // Calculate the "target" enthalpy of formation
+    double targetEnth = tempInfo->leftenth - rightEnth;
+
+    // Iterate through the products, looking up their Cp coefficients, calculating enthalpies
+    for (size_t j = 0; j < tempInfo->prodComp.size(); ++j) {
+
+        const auto& names = tempInfo->prodComp[j];
+        const auto& cpdata = compoundVectors[names];
+
+        // Find the Cp coefficients valid for temperature t
+        auto it = std::find_if(cpdata.begin(), cpdata.end(), [T](const auto& entry) {
+            return T >= entry.first.first && T <= entry.first.second;
+            });
+
+        const std::vector<double>& coeffs = it->second;
+
+        // Calculate "computed enthalpy" (Cp shomate equations)
+        computedEnth += (evaluatedProductsCoefficients[j] * (intCp(coeffs, (T / 1000.0)) - intCp(coeffs, 0.298))) * 1000.0;
+        //System::Windows::Forms::MessageBox::Show("Computed enth: " + (computedEnth).ToString() + " - iteration # " + (j).ToString() + "\n"
+        //+ (evaluatedProductsCoefficients[0]).ToString() + " - " + (evaluatedProductsCoefficients[1]).ToString() + " - " + (evaluatedProductsCoefficients[2]).ToString());
+    }
+
+    enthError = targetEnth - computedEnth;
+
+    // Control Message
+    /*System::Windows::Forms::MessageBox::Show("Temperarure: " + T.ToString() + "\n" + "a: " + (solutionsVector[0]).ToString() + "\n"
+    + "b: " + (solutionsVector[1]).ToString() + "\n" + "c: " + (solutionsVector[2]).ToString() + "\n" + "Left Enthalpy: " + tempInfo->leftenth.ToString()
+    + "\n" + "Right Enthalpy: " + rightEnth.ToString() + "\n" + "Target Enthalpy: " + targetEnth.ToString() + "\n" 
+    + "Computed Enthalpy: " + computedEnth.ToString() + "\n" + "Enthalpy Error: " + enthError.ToString() + "\n"
+    + "Theoretical Kp: " + allKpTheor[0].ToString() + "\n");*/
+
+    //System::Windows::Forms::MessageBox::Show("Enth error: " + enthError);
+
+    return enthError*enthError;
+
+}
+
+std::tuple<double, std::vector<double>> incompleteCombustion(const std::string& reactantsInput, const std::string& productsInput, const double &tolerance,const std::vector<std::string> &recombChecklist,const double &pressure) {
     
     // Setup coefficient and compound vectors for reactants and products
     std::vector<double> reactantsCoeff;
@@ -1032,29 +1119,21 @@ std::tuple<double, double, double, double> incompleteCombustion(const std::strin
     // Set standard temperature divided by 1000
     double T0 = 298.15 / 1000.0;
 
-    /*************************************************************************************************************/
-    /*************************************************************************************************************/
-    /*************************************************************************************************************/
-
     // Vector to get the selected kp checklist items
-    std::vector<std::vector<std::string>> allSelectedKpExp;
+    std::vector<std::vector<std::string>> allSelectedKpExp(recombChecklist.size());
 
     // Add every selected kp expression, formatted by the function
-    for (size_t i = 0; i < recombChecklist.size(); ++i) {
-        allSelectedKpExp[i] = splitKpString(recombChecklist[i]);
+    for (size_t h = 0; h < recombChecklist.size(); ++h) {
+        allSelectedKpExp[h] = splitKpString(recombChecklist[h]);
     }
 
     // Save how many were selected
     int howManyKpExp = allSelectedKpExp.size();
 
-    
-
-
-
 
     // Binary TEMPERATURE search setup
     double low = t_min;
-    double high = t_max;
+    double high = 4000;
     double bestT = t_min;  // Fallback value
     double bestError = INFINITY;
 
@@ -1062,27 +1141,61 @@ std::tuple<double, double, double, double> incompleteCombustion(const std::strin
 
     // Calculate left enthalpy of formation
     double leftEnth = 0.0;
-    for (int i = 0; i < reactantsCompounds.size(); ++i) {
-        leftEnth += reactantsCoeff[i] * enthalpies[reactantsCompounds[i]];
+    for (int p = 0; p < reactantsCompounds.size(); ++p) {
+        leftEnth += reactantsCoeff[p] * enthalpies[reactantsCompounds[p]];
     }
 
-    
+    // Create the mixed string vector of coefficients, later the symbolic ones will be replaced with results from the system of nl eqs
+    std::vector<std::string> symbolicProductsCoeffs = symbolicProductsCoeffHandler(productsCompounds, productsCoeff, allSelectedKpExp);
 
-    double a = 0.0, b = 0.0, c = 0.0;
+    double A = 0.0, B = 0.0, C = 0.0, D = 0.0, E = 0.0;
 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    tempLoop tempLoopInfo{
+        howManyKpExp,
+        allSelectedKpExp,
+        reactantsCompounds,
+        reactantsCoeff,
+        productsCompounds,
+        productsCoeff,
+        pressure,
+        symbolicProductsCoeffs,
+        leftEnth
+    };
 
-    // MAIN LOOP - TEMPERATURE
+    nlopt::opt opt(nlopt::GN_DIRECT_L, 1);
 
-    for (int i = 0; i < maxIterations; ++i) {
+    //nlopt::opt set_local_optimizer(const nlopt::opt &LN_NELDERMEAD);
+
+    //Set bounds
+    opt.set_lower_bounds(1000);
+    //double ub = completeCombustion(reactantsInput, productsInput, tolerance);
+    opt.set_upper_bounds(4000);
+
+    // Objective function
+    opt.set_min_objective(temps_objective_function, static_cast<void*>(&tempLoopInfo));
+    opt.set_stopval(1e-6);
+
+    std::vector<double> t = {3400}; // initial guesses, vector is as big as there are variables
+    double minf;
+
+    nlopt::result result = opt.optimize(t, minf);
+
+    System::Windows::Forms::MessageBox::Show("Error: " + minf);
+
+    // MAIN LOOP - TEMPERATURE *****************************************************************************************************************
+
+    /*for (int i = 0; i < maxIterations; ++i) {
         double mid = (low + high) / 2.0;
         double T = mid / 1000.0; //Shomate equations use K/1000
         double enthError = 0.0;
         double computedEnth = 0.0;
 
+        //System::Windows::Forms::MessageBox::Show("Temperarure: " + mid.ToString());
+
         // All theoretical kp container
         std::vector<double> allKpTheor;
-        allKpTheor.clear();
 
         // For every selected kp expression, calculate theoretical kp, and store it
         for (size_t r = 0; r < howManyKpExp; ++r) {
@@ -1101,11 +1214,11 @@ std::tuple<double, double, double, double> incompleteCombustion(const std::strin
             const std::vector<double>& kpcoeffs = std::get<2>(*it);
 
             // Unpack coefficients for clarity (append previous data)
-            double A = kpcoeffs[0];
-            double B = kpcoeffs[1];
-            double C = kpcoeffs[2];
-            double D = kpcoeffs[3];
-            double E = kpcoeffs[4];
+            A = kpcoeffs[0];
+            B = kpcoeffs[1];
+            C = kpcoeffs[2];
+            D = kpcoeffs[3];
+            E = kpcoeffs[4];
 
             // Calculate theoretical kp
             double kptheor = pow(10, A * pow(mid, 4) + B * pow(mid, 3) + C * pow(mid, 2) + D * mid + E);
@@ -1113,74 +1226,71 @@ std::tuple<double, double, double, double> incompleteCombustion(const std::strin
             allKpTheor.push_back(kptheor);
 
         }
-   
         
         // Calculate experimental kp and compare it to theoretical kp
-        std::tuple<double, double, std::vector<double>, double, double, double> expKpTuple = expKpHandler(reactantsCompounds, reactantsCoeff, productsCompounds, productsCoeff, selectedKpExp, leftEnth, pressure, kptheor, tolerance);
+        std::vector<double> solutionsVector = expKpHandler(reactantsCompounds, reactantsCoeff, productsCompounds, productsCoeff, allSelectedKpExp, pressure, allKpTheor);
 
-        double targetEnth = std::get<1>(expKpTuple); // Get the found target enthalpy from experimental kp calculation
+        //System::Windows::Forms::MessageBox::Show("Temperarure: " + mid.ToString() + "\n" + "a: " + (solutionsVector[0]).ToString() + "\n" + "b: " + (solutionsVector[1]).ToString() + "\n" + "c: " + (solutionsVector[2]).ToString() + "\n");
 
-        const double enthalpyTolerance = tolerance * abs(targetEnth);  // Allowable enthalpy error
+        // Get the vector of doubles fully evaluated, for the right enthalpy
+        std::vector<double> evaluatedProductsCoefficients = simpleEvalHandler(symbolicProductsCoeffs, solutionsVector);
 
-        a = std::get<3>(expKpTuple);
-        b = std::get<4>(expKpTuple);
-        c = std::get<5>(expKpTuple);
-
-
-        //System::Windows::Forms::MessageBox::Show("Left Enthalpy: " + leftEnth.ToString() + "\n" + "\n"
-        //+ "Target Enthalpy: " + targetEnth.ToString() + "\n" + "Theoretical Kp: " + kptheor.ToString());
-
-        //System::Windows::Forms::MessageBox::Show(std::get<0>(expKpTuple).ToString());
-
-        // If kp matches,
-        if (std::get<0>(expKpTuple)) {
-            
-            std::vector<double> mixProductCoeffsCP = std::get<2>(expKpTuple); // Get the fully evaluated coefficients for Cp calculation
-
-            // Iterate through the products, looking up their Cp coefficients, calculating enthalpies
-            for (int j = 0; j < productsCompounds.size(); ++j) {
-                const auto& names = productsCompounds[j];
-                const auto& cpdata = compoundVectors[names];
-
-                // Find the Cp coefficients valid for temperature t
-                auto it = std::find_if(cpdata.begin(), cpdata.end(), [mid](const auto& entry) {
-                    return mid >= entry.first.first && mid <= entry.first.second;
-                    });
-
-                const std::vector<double>& coeffs = it->second;
-
-                // Calculate "computed enthalpy" (Cp shomate equations)
-                computedEnth += (mixProductCoeffsCP[j] * (intCp(coeffs, T) - intCp(coeffs, T0))) * 1000.0;
-            }
-
-            // Calculate enthalpy error 
-            enthError = computedEnth - targetEnth;
-
-            //System::Windows::Forms::MessageBox::Show("Enthalpy error: " + enthError.ToString());
-
+        // Calculate right enthalpy of formation
+        double rightEnth = 0.0;
+        for (int k = 0; k < productsCompounds.size(); ++k) {
+            rightEnth += evaluatedProductsCoefficients[k] * enthalpies[productsCompounds[k]];
         }
-        else { continue; }
+        
+        // Calculate the "target" enthalpy of formation
+        double targetEnth = leftEnth - rightEnth;
+
+        double enthalpyTolerance = tolerance * abs(targetEnth);  // Allowable enthalpy error
+
+        // Iterate through the products, looking up their Cp coefficients, calculating enthalpies
+        for (size_t j = 0; j < productsCompounds.size(); ++j) {
+                
+            const auto& names = productsCompounds[j];
+            const auto& cpdata = compoundVectors[names];
+
+            // Find the Cp coefficients valid for temperature t
+            auto it = std::find_if(cpdata.begin(), cpdata.end(), [mid](const auto& entry) {
+                return mid >= entry.first.first && mid <= entry.first.second;
+            });
+
+            const std::vector<double>& coeffs = it->second;
+
+            //System::Windows::Forms::MessageBox::Show("Coefficients -" + "\n" +
+            //    coeffs[0] + " " + coeffs[1] + " " + coeffs[2] + " " + coeffs[3] + " " + coeffs[4] + " " + "\n");
+
+            // Calculate "computed enthalpy" (Cp shomate equations)
+            computedEnth += (evaluatedProductsCoefficients[j] * (intCp(coeffs, T) - intCp(coeffs, T0))) * 1000.0;
+            //System::Windows::Forms::MessageBox::Show("Computed enth: " + (computedEnth).ToString() + " - iteration # " + (j).ToString() + "\n"
+            //+ (evaluatedProductsCoefficients[0]).ToString() + " - " + (evaluatedProductsCoefficients[1]).ToString() + " - " + (evaluatedProductsCoefficients[2]).ToString());
+        }
+
+        // Calculate enthalpy error
+        enthError = targetEnth - computedEnth;
 
         // Control Message
-        //System::Windows::Forms::MessageBox::Show("Left Enthalpy: " + leftEnth.ToString() + "\n" + "Right Enthalpy: " + rightEnth.ToString() + "\n"
-        //+ "Target Enthalpy: " + targetEnth.ToString() + "\n" + "Computed Enthalpy: " + computedEnth.ToString() + "\n" + "Enthalpy Error: " + enthError.ToString() + "\n" 
-        //+ "Theoretical Kp: " + kptheor.ToString() + "\n" + "Experimental Kp: " + kpexp.ToString() + "\n" + "Kp Error: " + kperror.ToString() + " %");
+        System::Windows::Forms::MessageBox::Show("Temperarure: " + mid.ToString() + "\n" + "a: " + (solutionsVector[0]).ToString() + "\n" + "b: " + (solutionsVector[1]).ToString() + "\n" + "c: " + (solutionsVector[2]).ToString() + "\n" + "Left Enthalpy: " + leftEnth.ToString() + "\n" + "Right Enthalpy: " + rightEnth.ToString() + "\n"
+        + "Target Enthalpy: " + targetEnth.ToString() + "\n" + "Computed Enthalpy: " + computedEnth.ToString() + "\n" + "Enthalpy Error: " + enthError.ToString() + "\n" 
+        + "Theoretical Kp: " + allKpTheor[0].ToString() + "\n");
 
         // Track best solution
         if (abs(enthError) < bestError) {
-           bestError = abs(enthError);
-           bestT = mid;
+             bestError = abs(enthError);
+             bestT = mid;
         }
 
         // Check for convergence
         if (abs(enthError) <= enthalpyTolerance) {
-            return { {mid},{a},{b},{c} };
+            return { {mid}, {solutionsVector} };
         }
 
         // Early exit if the range is too small
-        if ((high - low) < 0.000000001) {  // 1E-9 K precision
-           System::Windows::Forms::MessageBox::Show("T ran out of precision");
-           break;
+        if ((high - low) < 0.0000000000001) {  // 1E-13 K precision
+            System::Windows::Forms::MessageBox::Show("T ran out of precision");
+            break;
         }
 
         // Update search bounds
@@ -1191,9 +1301,9 @@ std::tuple<double, double, double, double> incompleteCombustion(const std::strin
             low = mid;  // Too cold, search upper half
         }
 
-    }
+    }*/
 
-    return { {bestT},{a},{b},{c}};
+    return { {t[0]}, {0}};
 }
 
 //
@@ -1204,7 +1314,7 @@ std::tuple<double, double, double, double> incompleteCombustion(const std::strin
 // EXTENDED INCOMPLETE COMBUSTION SECTION ------------------------------------------------------------------------------------------
 //
 
-static std::tuple<double, double, std::vector<double>, double, double, double> extendedExperimentalKpHandler(const std::vector<std::string>& reactantsCompounds, const std::vector<double>& reactantsCoeff, const std::vector<std::string>& productsCompounds, const std::vector<double>& productsCoeff, const std::vector<std::string>& selectedKpExp, const double& leftEnth, const double& pressure, const double& kptheor, const double& tolerance) {
+/*static std::tuple<double, double, std::vector<double>, double, double, double> extendedExperimentalKpHandler(const std::vector<std::string>& reactantsCompounds, const std::vector<double>& reactantsCoeff, const std::vector<std::string>& productsCompounds, const std::vector<double>& productsCoeff, const std::vector<std::string>& selectedKpExp, const double& leftEnth, const double& pressure, const double& kptheor, const double& tolerance) {
 
     // Binary FRACTION search setup
     double lowx = 0;
@@ -1342,9 +1452,7 @@ static std::tuple<double, double, std::vector<double>, double, double, double> e
     //return { {0},{0},{0,0} };
 
 }
-
-
-
+*/
 
 //
 // EXTENDED INCOMPLETE COMBUSTION SECTION ------------------------------------------------------------------------------------------
@@ -1380,15 +1488,27 @@ namespace NativeWinGUIC {
         }
 
         // Extract selected item in recombination textbox
-        std::string recombSelectedString;
-        if (!String::IsNullOrEmpty(lstbRecombOptions->GetItemText(lstbRecombOptions->SelectedItem))) {
-            recombSelectedString = msclr::interop::marshal_as<std::string>(lstbRecombOptions->GetItemText(lstbRecombOptions->SelectedItem));
+        std::vector<std::string> recombSelectedStrings;
+        // Loop through all selected items, and if valid, add them
+        for each (Object ^ item in lstbRecombOptions->SelectedItems) {
+            String^ text = lstbRecombOptions->GetItemText(item);
+            if (!String::IsNullOrEmpty(text)) {
+                recombSelectedStrings.push_back(msclr::interop::marshal_as<std::string>(text));
+            }
         }
 
         // Verify valid reaction input
         if (!String::IsNullOrEmpty(Reactantsinput) && !String::IsNullOrEmpty(Productsinput) && !tbReactants->Text->Contains("e.g. N2H4 3N2 H2") && !tbProducts->Text->Contains("e.g. 2NH3 N2 H2")) {
             if (ckbRecombination->Checked && PressureNum) {
-                MessageBox::Show("Reaction to process: " + Reactantsinput + " -> " + Productsinput + "\n" + "Reaction Pressure: " + PressureNum + " atm" + "\n" + "The following recombination effect will be considered: " + gcnew String(recombSelectedString.c_str()));
+                String^ recombPrint = "";
+                for each (Object ^ item in lstbRecombOptions->SelectedItems) {
+                    String^ text = lstbRecombOptions->GetItemText(item);
+                    if (!String::IsNullOrEmpty(text)) {
+                        recombPrint += text + "\n";
+                    }
+                }
+
+                MessageBox::Show("Reaction to process: " + Reactantsinput + " -> " + Productsinput + "\n" + "Reaction Pressure: " + PressureNum + " atm" + "\n" + "The following recombination effects will be considered: " + "\n" + recombPrint);
             }
             if (!ckbRecombination->Checked) {
                 MessageBox::Show("Reaction to process: " + Reactantsinput + " -> " + Productsinput);
@@ -1399,15 +1519,25 @@ namespace NativeWinGUIC {
 
         // Initialize Adiabatic flame temperature variable "aft"
         double aft = 0.0;
-        std::tuple<double, double, double, double> incompTuple;
+        std::vector<double> solutionsVector;
 
         // Determine type of calculation from checkbox
         if (!ckbRecombination->Checked) {
             aft = completeCombustion(convReactantsinput, convProductsinput);
         }
         else {
-            incompTuple = incompleteCombustion(convReactantsinput, convProductsinput, 0.000001, recombSelectedString, PressureNum);
-            aft = std::get<0>(incompTuple);
+            auto incompVec = incompleteCombustion(convReactantsinput, convProductsinput, 0.000001, recombSelectedStrings, PressureNum);
+            aft = std::get<0>(incompVec);
+            solutionsVector = std::get<1>(incompVec);
+        }
+
+        System::String^ solutionsPrintAppendix = "Error in solutions printing";
+        if (!solutionsVector.empty()) {
+            solutionsPrintAppendix = "";
+            for (size_t u = 0; u < solutionsVector.size(); ++u) {
+                char var = 'a' + u;
+                solutionsPrintAppendix += var + ": " + (solutionsVector[u]).ToString() + "\n";
+            }
         }
 
         //Final Temperature Output
@@ -1425,13 +1555,13 @@ namespace NativeWinGUIC {
         }
         if (rdbLogFULL->Checked && ckbRecombination->Checked) {
             if (rdbOutK->Checked) {
-                msg = "Adiabatic Flame Temperature: " + (aft).ToString() + " K" + "\n" + "a: " + (std::get<1>(incompTuple)).ToString() + "\n" + "b: " + (std::get<2>(incompTuple)).ToString() + "\n" + "c: " + (std::get<3>(incompTuple)).ToString();
+                msg = "Adiabatic Flame Temperature: " + (aft).ToString() + " K" + "\n" + solutionsPrintAppendix;
             }
             if (rdbOutF->Checked) {
-                msg = "Adiabatic Flame Temperature: " + ((aft - 273.15) * (9.0 / 5.0) + 32.0).ToString() + " °F" + "\n" + "a: " + (std::get<1>(incompTuple)).ToString() + "\n" + "b: " + (std::get<2>(incompTuple)).ToString() + "\n" + "c: " + (std::get<3>(incompTuple)).ToString();
+                msg = "Adiabatic Flame Temperature: " + ((aft - 273.15) * (9.0 / 5.0) + 32.0).ToString() + " °F" + "\n" + solutionsPrintAppendix;
             }
             if (rdbOutC->Checked) {
-                msg = "Adiabatic Flame Temperature: " + (aft - 273.15).ToString() + " °C" + "\n" + "a: " + (std::get<1>(incompTuple)).ToString() + "\n" + "b: " + (std::get<2>(incompTuple)).ToString() + "\n" + "c: " + (std::get<3>(incompTuple)).ToString();
+                msg = "Adiabatic Flame Temperature: " + (aft - 273.15).ToString() + " °C" + "\n" + solutionsPrintAppendix;
             }
         }
         if (rdbLogFULL->Checked && !ckbRecombination->Checked) {

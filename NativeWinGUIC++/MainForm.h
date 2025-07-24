@@ -272,6 +272,7 @@ namespace NativeWinGUIC {
 			});
 			this->lstbRecombOptions->Location = System::Drawing::Point(9, 164);
 			this->lstbRecombOptions->Name = L"lstbRecombOptions";
+			this->lstbRecombOptions->SelectionMode = System::Windows::Forms::SelectionMode::MultiSimple;
 			this->lstbRecombOptions->Size = System::Drawing::Size(182, 69);
 			this->lstbRecombOptions->TabIndex = 6;
 			this->lstbRecombOptions->SelectedIndexChanged += gcnew System::EventHandler(this, &MainForm::lstbRecombOptions_SelectedIndexChanged);
