@@ -800,7 +800,7 @@ double objective_function(const std::vector<double>& x, std::vector<double>& gra
         sum_sq += val * val;
     }
 
-    //System::Windows::Forms::MessageBox::Show(/*"a: " + a[0].ToString() + "\n" + "b: " + a[1].ToString() + "\n" + "c: " + a[2].ToString() + "\n" + */"Sumsq: " + sum_sq.ToString());
+    //System::Windows::Forms::MessageBox::Show("a: " + a[0].ToString() + "\n" + "b: " + a[1].ToString() + "\n" + "c: " + a[2].ToString() + "\n" + "Sumsq: " + sum_sq.ToString());
 
     return sum_sq;  // return the sum of squares
 }
@@ -960,19 +960,21 @@ static std::vector<double> expKpHandler(const std::vector<std::string> &reactant
     };
 
     // Run nelder mead with as many variables as present
-    nlopt::opt opt(nlopt::LN_NELDERMEAD, nelderMeadInfo.varNames.size());
+    nlopt::opt opt(nlopt::GN_DIRECT, nelderMeadInfo.varNames.size());
 
     // Lower bounds, one for each present variable
     std::vector<double> lb(nelderMeadInfo.varNames.size(), 0.0);
     opt.set_lower_bounds(lb);
-    //opt.set_upper_bounds({10.0,10.0,10.0});
+    std::vector<double> ub(nelderMeadInfo.varNames.size(), 10.0);
+    opt.set_upper_bounds(ub);
 
     // Objective function
     opt.set_min_objective(objective_function, static_cast<void*>(&nelderMeadInfo));
-    opt.set_stopval(1e-15);
+    opt.set_stopval(1e-12);
+    //opt.set_maxeval(1000);
 
     std::vector<double> x(nelderMeadInfo.varNames.size(), 1.0); // initial guesses, vector is as big as there are variables
-    //std::vector<double> x = {1.97, 0.04, 0.00005};
+    //std::vector<double> x = {1.269,0.365,0.096};
     double minf;
 
     nlopt::result result = opt.optimize(x, minf);
@@ -1083,11 +1085,11 @@ double temps_objective_function(const std::vector<double>& t, std::vector<double
     enthError = targetEnth - computedEnth;
 
     // Control Message
-    /*System::Windows::Forms::MessageBox::Show("Temperarure: " + T.ToString() + "\n" + "a: " + (solutionsVector[0]).ToString() + "\n"
+    System::Windows::Forms::MessageBox::Show("Temperarure: " + T.ToString() + "\n" + "a: " + (solutionsVector[0]).ToString() + "\n"
     + "b: " + (solutionsVector[1]).ToString() + "\n" + "c: " + (solutionsVector[2]).ToString() + "\n" + "Left Enthalpy: " + tempInfo->leftenth.ToString()
     + "\n" + "Right Enthalpy: " + rightEnth.ToString() + "\n" + "Target Enthalpy: " + targetEnth.ToString() + "\n" 
     + "Computed Enthalpy: " + computedEnth.ToString() + "\n" + "Enthalpy Error: " + enthError.ToString() + "\n"
-    + "Theoretical Kp: " + allKpTheor[0].ToString() + "\n");*/
+    + "Theoretical Kp: " + allKpTheor[0].ToString() + "\n");
 
     //System::Windows::Forms::MessageBox::Show("Enth error: " + enthError);
 
