@@ -108,7 +108,7 @@ double objective_function(const std::vector<double>& x, std::vector<double>& gra
     // Copy the x vector, so as to work with it
     std::vector<double> a = x;
 
-    std::cout << a[0] << " " << a[1] << " " << a[2] << " " << a[3] << "\n";
+    std::cout << a[0] << " " << a[1] << " " << a[2] << "\n";
 
     // Create the vector holding all expressions, the parser and the symbol table
     std::vector<exprtk::expression<double>> expressions;
@@ -148,25 +148,27 @@ double objective_function(const std::vector<double>& x, std::vector<double>& gra
 
 int main() {
 
-    std::vector<std::string> nonLinearEquations = { "2 - 2*X - 2*Y - W", "5 - X - 2*Z - W", "0.0005816 - (Y * sqrt(Z) / X) * sqrt(1.0 / (X + Y + Z + W))", "0.0009570 - (W * sqrt(Y) / X) * sqrt(1.0 / (X + Y + Z + W))" };
+    std::vector<std::string> nonLinearEquations = { "4 - 3*X - 2*Z", "2 - X - 2*Y", "8672 - (sqrt(Y) * (Z^(3/2)) / X) * (34.022 / (X + Y + Z ))" };
 
     exprtkData Info = {
         nonLinearEquations,
         {{1,0.5,0.5},{1,1,0.5}},
-        {"X","Y","Z","W"}
+        {"X","Y","Z"}
     };
 
 
     auto start = std::chrono::system_clock::now();
-    nlopt::opt opt(nlopt::LN_NELDERMEAD, Info.varNames.size()); // Run nelder mead with as many variables as present
+    nlopt::opt opt(nlopt::LN_PRAXIS, Info.varNames.size()); // Run nelder mead with as many variables as present
 
     // Lower bounds, one for each present variable
     std::vector<double> lb(Info.varNames.size(), 0.0);
     opt.set_lower_bounds(lb);
+    //std::vector<double> ub(Info.varNames.size(), 10.0);
+    //opt.set_upper_bounds(ub);
 
     // Objective function
     opt.set_min_objective(objective_function, static_cast<void*>(&Info));
-    opt.set_stopval(1e-12);
+    opt.set_stopval(1e-9);
 
     std::vector<double> x(Info.varNames.size(), 1.0); // initial guess
     double minf;
@@ -175,13 +177,13 @@ int main() {
 
     auto end = std::chrono::system_clock::now();
 
-    std::cout << Info.equations[0] << "\n" << Info.equations[1] << "\n" << Info.equations[2] << "\n" << Info.equations[3] << "\n";
+    std::cout << Info.equations[0] << "\n" << Info.equations[1] << "\n" << Info.equations[2] << "\n" /* << Info.equations[3] << "\n"*/;
     //std::cout << "a = " << x[0] << ", b = " << x[1] << "\n";
     std::cout << "Computing time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count() << "ns" << "\n";
     std::cout << "Solution: x = " << x[0]
         << ", y = " << x[1]
         << ", z = " << x[2]
-        << ", w = " << x[3] << "\n"
+        /* << ", w = " << x[3]*/ << "\n"
         << "Sum of sq residuals: " << minf << "\n";
         //<< std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count() << "ns";
 

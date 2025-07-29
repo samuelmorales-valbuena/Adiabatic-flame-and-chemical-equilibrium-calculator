@@ -211,41 +211,41 @@ static std::map<std::vector<std::string>, std::tuple<std::vector<std::tuple<doub
     {{"O","O2"},{{
         {298,1500, {-5.25e-11, 2.30e-07, -3.78e-04, 2.89e-01, -9.84e+01}},
         {1500,5000,{0.00e+00, 1.86e-10, -2.35e-06, 1.05e-02, -1.64e+01}}
-        }, {1, -1.0 / 2}
+        }, {1, 1.0 / 2}
     }},
     // kp2 data
     {{"H","H2"},{{
         {298,1500,{-4.63e-11,2.20e-07,-3.33e-04,2.55e-01,-8.68e+01}},
         {1500,5000,{0.00e+00,1.65e-10,-2.08e-06,9.40e-03,1.46e+01}}
-        }, {1, -1.0 / 2}
+        }, {1, 1.0 / 2}
 
     }},
     // kp3 data
     {{"OH","O2","H2"},{{
         {298,1500,{-8.97e-12,3.93e-08,-6.46e-05,4.93e-02,-1.65e+01}},
         {1500,5000,{0.00e+00,3.04e-11,-3.81e-07,1.70e-03,-2.44e+00}}
-        }, {1, -1.0 / 2, -1.0 / 2}
+        }, {1, 1.0 / 2, 1.0 / 2}
 
     }},
     // kp4 data
     {{"H2O","H2","O2"},{{
         {298,1500,{5.12e-11,-2.24e-07,3.69e-04,-2.82e-01,9.68e+01}},
         {1500,5000,{0.00e+00,-1.86e-10,2.34e-06,-1.05e-02,1.67e+01}}
-        }, {1, -1.0, -1.0 / 2}
+        }, {1, 1.0, 1.0 / 2}
 
     }},
     // kp5 data
     {{"N","N2"},{{
         {298,1500,{-7.61e-11,3.33e-07,-5.47e-04,4.18e-01,-1.44e+02}},
         {1500,5000,{0.00e+00,2.68e-10,-3.38e-06,1.52e-02,-2.51e+01}}
-        }, {1, -1.0 / 2}
+        }, {1, 1.0 / 2}
 
     }},
     // kp6 data
     {{"NO","N2","O2"},{{
         {298,1500,{-1.92e-11,8.41e-08,-1.38e-04,1.06e-01,-3.64e+01}},
         {1500,5000,{0.00e+00,6.69e-11,-8.44e-07,3.80e-03,6.45e+00}}
-        }, {1, -1.0, -1.0 / 2}
+        }, {1, 1.0, 1.0 / 2}
 
     }},
 
@@ -261,73 +261,73 @@ static std::map<std::vector<std::string>, std::tuple<std::vector<std::tuple<doub
     {{"CO","C","O2"},{{
         {298,1500,{2.34e-11,-1.02e-07,1.68e-04,-1.28e-01,4.98e+01}},
         {1500,4000,{0.00e+00,-1.37e-10,1.48e-06,-5.90e-03,1.44e+01}}
-        }, {1, -1.0, -1.0 / 2}
+        }, {1, 1.0, 1.0 / 2}
 
     }},
     // kp10 data
     {{"CO2","C","O2"},{{
         {298,1500,{8.38e-11,-3.66e-07,6.02e-04,-4.60e-01,1.61e+02}},
         {1500,4000,{0.00e+00,-4.90e-10,5.27e-06,-2.06e-02,3.44e+01}}
-        }, {1, -1.0, -1.0}
+        }, {1, 1.0, 1.0}
 
     }},
     // kp11 data
     {{"CH4","C","H2"},{{
         {298,1500,{1.51e-11,-6.63e-08,1.10e-04,-8.64e-02,2.65e+01}}
-        }, {1, -1.0, -2.0}
+        }, {1, 1.0, 2.0}
 
     }},
     // kp12 data
     {{"C2H2","C","H2"},{{
         {298,1500,{-4.84e-11,2.12e-07,-3.48e-04,2.65e-01,-8.99e+01}}
-        }, {1, -2.0, -1.0}
+        }, {1, 2.0, 1.0}
 
     }},
     // kp13 data
     {{"Cl","Cl2"},{{
         {298,1500,{-2.57e-11,1.12e-07,-1.85e-04,1.42e-01,-4.70e+01}}
-        }, {1, -1.0 / 2}
+        }, {1, 1.0 / 2}
 
     }},
     // kp14 data
     {{"HCl","H2","Cl2"},{{
         {298,1500,{1.96e-11,-8.56e-08,1.41e-04,-1.08e-01,3.83e+01}}
-        }, {1, -1.0 / 2, -1.0 / 2}
+        }, {1, 1.0 / 2, 1.0 / 2}
 
     }},
     // kp15 data
     {{"NH","N2","H2"},{{
         {600,2000,{-8.73e-12,5.58e-08,-1.37e-04,1.62e-01,-9.04e+01}},
         {2000,4000,{0.00e+00,2.80e-10,-3.33e-06,1.46e-02,-2.69e+01}}
-        }, {1, -1.0 / 2, -1.0 / 2}
+        }, {1, 1.0 / 2, 1.0 / 2}
 
     }},
     // kp16 data
     {{"NH3","N2","H2"},{{
         {600,2000,{1.08e-12,-7.02e-09,1.76e-05,-2.14e-02,6.48e+00}},
         {2000,4000,{0.00e+00,-4.46e-11,5.26e-07,-2.20e-03,-1.95e+00}}
-        }, {1, -1.0 / 2, -3.0 / 2}
+        }, {1, 1.0 / 2, 3.0 / 2}
 
     }},
     // kp17 data
     {{"CH2","C","H2"},{{
         {600,2000,{-8.97e-12,5.73e-08,-1.41e-04,1.66e-01,-9.07e+01}},
         {2000,4000,{0.00e+00,2.83e-10,-3.37e-06,1.47e-02,-2.56e+01}}
-        }, {1, -1.0, -1.0}
+        }, {1, 1.0, 1.0}
 
     }},
     // kp18 data
     {{"NO2","NO","O2"},{{
         {300,1600,{-9.84e-12,4.53e-08,-7.82e-05,6.24e-02,-1.92e+01}},
         {1600,3000,{0.00e+00,1.80e-10,-1.48e-06,4.50e-03,-2.45e+00}}
-        }, {1, -1.0, -1.0 / 2}
+        }, {1, 1.0, 1.0 / 2}
 
     }},
     // kp19 data
     {{"NO","N2","O2"},{{
         {300,1800,{-1.03e-11,5.27e-08,-9.98e-05,8.66e-02,-3.32e+01}},
         {1800,5000,{0.00e+00,5.23e-11,-6.88e-07,3.30e-03,-5.87e+00}}
-        }, {1, -1.0 / 2, -1.0 / 2}
+        }, {1, 1.0 / 2, 1.0 / 2}
 
     }}
 
@@ -742,12 +742,12 @@ std::vector<std::string> nonLinearEquationsBuilder(const std::vector<double>& al
             distances[j].push_back(distance(orderedProductCompounds.begin(), itx));
         }
 
-        expKpExpressions[j] = std::string("(") + "(" + orderedProductCoefficients[distances[j][0]] + "/" + varSum + ")" + "/" + "(" + "(" + "(" + orderedProductCoefficients[distances[j][1]] + "/" + varSum + ")" + "^" + "(" + std::to_string(expKpExponentsVector[j][1]) + ")" + ")" + "*" + "(" + "(" + orderedProductCoefficients[distances[j][2]] + "/" + varSum + ")" + "^" + "(" + std::to_string(expKpExponentsVector[j][2]) + ")" + ")" + ")" + ")" + "*" + "(" + std::to_string(pressure) + ")" + "^" + "(" + std::to_string(deltn[j]) + ")";
+        expKpExpressions[j] = std::string("(") + "(" + "(" + "(" + orderedProductCoefficients[distances[j][1]] + ")" + "^" + "(" + std::to_string(expKpExponentsVector[j][1]) + ")" + ")" + "*" + "(" + "(" + orderedProductCoefficients[distances[j][2]] + ")" + "^" + "(" + std::to_string(expKpExponentsVector[j][2]) + ")" + ")" + ")" +"/" + "(" + orderedProductCoefficients[distances[j][0]] + ")" +")" + "*" + "(" + std::to_string(pressure) + "/" + "(" + varSum + ")" + ")" + "^" + "(" + std::to_string(deltn[j]) + ")";
     }
 
     // Build the non-linear equation
     for (size_t i = 0; i < allKpTheor.size(); ++i) {
-        nonLinearEquations.push_back(std::to_string(allKpTheor[i]) + " - " + expKpExpressions[i]);
+        nonLinearEquations.push_back(std::to_string(1/allKpTheor[i]) + " - " + expKpExpressions[i]);
     }
     return nonLinearEquations;
 }
@@ -913,7 +913,7 @@ static std::vector<double> expKpHandler(const std::vector<std::string> &reactant
         const auto& [kpTuples, exponents] = kpVectors.at(allSelectedKpExp[v]);
 
         //Delta-n
-        double deltaN = accumulate(exponents.begin(), exponents.end(), 0.0);
+        double deltaN = (exponents[1]) + (exponents[2]) - exponents[0];
 
         /**********************************************************************************/
 
@@ -960,21 +960,19 @@ static std::vector<double> expKpHandler(const std::vector<std::string> &reactant
     };
 
     // Run nelder mead with as many variables as present
-    nlopt::opt opt(nlopt::GN_DIRECT, nelderMeadInfo.varNames.size());
+    nlopt::opt opt(nlopt::LN_PRAXIS, nelderMeadInfo.varNames.size());
 
     // Lower bounds, one for each present variable
     std::vector<double> lb(nelderMeadInfo.varNames.size(), 0.0);
     opt.set_lower_bounds(lb);
-    std::vector<double> ub(nelderMeadInfo.varNames.size(), 10.0);
-    opt.set_upper_bounds(ub);
+    //std::vector<double> ub(nelderMeadInfo.varNames.size(), 10.0);
+    //opt.set_upper_bounds(ub);
 
     // Objective function
     opt.set_min_objective(objective_function, static_cast<void*>(&nelderMeadInfo));
     opt.set_stopval(1e-12);
-    //opt.set_maxeval(1000);
 
     std::vector<double> x(nelderMeadInfo.varNames.size(), 1.0); // initial guesses, vector is as big as there are variables
-    //std::vector<double> x = {1.269,0.365,0.096};
     double minf;
 
     nlopt::result result = opt.optimize(x, minf);
@@ -1085,11 +1083,11 @@ double temps_objective_function(const std::vector<double>& t, std::vector<double
     enthError = targetEnth - computedEnth;
 
     // Control Message
-    System::Windows::Forms::MessageBox::Show("Temperarure: " + T.ToString() + "\n" + "a: " + (solutionsVector[0]).ToString() + "\n"
+    /*System::Windows::Forms::MessageBox::Show("Temperarure: " + T.ToString() + "\n" + "a: " + (solutionsVector[0]).ToString() + "\n"
     + "b: " + (solutionsVector[1]).ToString() + "\n" + "c: " + (solutionsVector[2]).ToString() + "\n" + "Left Enthalpy: " + tempInfo->leftenth.ToString()
     + "\n" + "Right Enthalpy: " + rightEnth.ToString() + "\n" + "Target Enthalpy: " + targetEnth.ToString() + "\n" 
     + "Computed Enthalpy: " + computedEnth.ToString() + "\n" + "Enthalpy Error: " + enthError.ToString() + "\n"
-    + "Theoretical Kp: " + allKpTheor[0].ToString() + "\n");
+    + "Theoretical Kp: " + (1/allKpTheor[0]).ToString() + "\n");*/
 
     //System::Windows::Forms::MessageBox::Show("Enth error: " + enthError);
 
@@ -1166,7 +1164,7 @@ std::tuple<double, std::vector<double>> incompleteCombustion(const std::string& 
         leftEnth
     };
 
-    nlopt::opt opt(nlopt::GN_DIRECT_L, 1);
+    /*nlopt::opt opt(nlopt::LN_NELDERMEAD, 1);
 
     //nlopt::opt set_local_optimizer(const nlopt::opt &LN_NELDERMEAD);
 
@@ -1179,16 +1177,16 @@ std::tuple<double, std::vector<double>> incompleteCombustion(const std::string& 
     opt.set_min_objective(temps_objective_function, static_cast<void*>(&tempLoopInfo));
     opt.set_stopval(1e-6);
 
-    std::vector<double> t = {3400}; // initial guesses, vector is as big as there are variables
+    std::vector<double> t = {1900}; // initial guesses, vector is as big as there are variables
     double minf;
 
     nlopt::result result = opt.optimize(t, minf);
 
-    System::Windows::Forms::MessageBox::Show("Error: " + minf);
+    System::Windows::Forms::MessageBox::Show("Error: " + minf);*/
 
     // MAIN LOOP - TEMPERATURE *****************************************************************************************************************
 
-    /*for (int i = 0; i < maxIterations; ++i) {
+    for (int i = 0; i < maxIterations; ++i) {
         double mid = (low + high) / 2.0;
         double T = mid / 1000.0; //Shomate equations use K/1000
         double enthError = 0.0;
@@ -1274,9 +1272,9 @@ std::tuple<double, std::vector<double>> incompleteCombustion(const std::string& 
         enthError = targetEnth - computedEnth;
 
         // Control Message
-        System::Windows::Forms::MessageBox::Show("Temperarure: " + mid.ToString() + "\n" + "a: " + (solutionsVector[0]).ToString() + "\n" + "b: " + (solutionsVector[1]).ToString() + "\n" + "c: " + (solutionsVector[2]).ToString() + "\n" + "Left Enthalpy: " + leftEnth.ToString() + "\n" + "Right Enthalpy: " + rightEnth.ToString() + "\n"
-        + "Target Enthalpy: " + targetEnth.ToString() + "\n" + "Computed Enthalpy: " + computedEnth.ToString() + "\n" + "Enthalpy Error: " + enthError.ToString() + "\n" 
-        + "Theoretical Kp: " + allKpTheor[0].ToString() + "\n");
+        //System::Windows::Forms::MessageBox::Show("Temperarure: " + mid.ToString() + "\n" + "a: " + (solutionsVector[0]).ToString() + "\n" + "b: " + (solutionsVector[1]).ToString() + "\n" + "c: " + (solutionsVector[2]).ToString() + "\n" + "Left Enthalpy: " + leftEnth.ToString() + "\n" + "Right Enthalpy: " + rightEnth.ToString() + "\n"
+        //+ "Target Enthalpy: " + targetEnth.ToString() + "\n" + "Computed Enthalpy: " + computedEnth.ToString() + "\n" + "Enthalpy Error: " + enthError.ToString() + "\n" 
+        //+ "Theoretical Kp: " + allKpTheor[0].ToString() + "\n");
 
         // Track best solution
         if (abs(enthError) < bestError) {
@@ -1296,16 +1294,16 @@ std::tuple<double, std::vector<double>> incompleteCombustion(const std::string& 
         }
 
         // Update search bounds
-        if (enthError > 0) {
+        if (enthError < 0) {
             high = mid;  // Too hot, search lower half
         }
         else {
             low = mid;  // Too cold, search upper half
         }
 
-    }*/
+    }
 
-    return { {t[0]}, {0}};
+    return { {bestT}, {0}};
 }
 
 //
@@ -1528,7 +1526,7 @@ namespace NativeWinGUIC {
             aft = completeCombustion(convReactantsinput, convProductsinput);
         }
         else {
-            auto incompVec = incompleteCombustion(convReactantsinput, convProductsinput, 0.000001, recombSelectedStrings, PressureNum);
+            auto incompVec = incompleteCombustion(convReactantsinput, convProductsinput, 0.00001, recombSelectedStrings, PressureNum);
             aft = std::get<0>(incompVec);
             solutionsVector = std::get<1>(incompVec);
         }
